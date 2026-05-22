@@ -1,0 +1,45 @@
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1000;
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 720px;
+  background: #0b1221;
+  border: 1px solid #1f2937;
+  border-radius: 16px;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.45);
+  color: #f8fafc;
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 20px 24px 8px;
+  border-bottom: 1px solid #1f2937;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.modal-subtitle {
+  margin: 6px 0 0;
+  color: #94a3b8;
+  font-size: 0.95rem;
+}
+
+.modal-close {
+  background: transparent;
+  /* Tailwind CSS handles styling. */
+  color: #e2e8f0;
+}

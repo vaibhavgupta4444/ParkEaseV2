@@ -1,0 +1,103 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #1D4ED8;
+  --color-primaryHover: #1E40AF;
+  --color-secondary: #0F172A;
+  --color-background: #F8FAFC;
+  --color-surface: #FFFFFF;
+  --color-border: #E2E8F0;
+  --color-textPrimary: #0F172A;
+  --color-textSecondary: #64748B;
+  --color-textMuted: #94A3B8;
+  --color-success: #16A34A;
+  --color-error: #DC2626;
+  --color-warning: #D97706;
+  --color-info: #0284C7;
+}
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  background: linear-gradient(to bottom, #f8fafc, #ffffff, #ecfeff);
+  color: #0f172a;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+.app-light-theme {
+  color-scheme: light;
+}
+
+.app-light-theme :where([class*="bg-slate-900"], [class*="bg-slate-950"]) {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.app-light-theme :where([class*="bg-slate-800"], [class*="bg-slate-700"]) {
+  background: #e2e8f0;
+}
+
+.app-light-theme :where([class*="border-slate-800"], [class*="border-slate-700"]) {
+  border-color: #e2e8f0;
+}
+
+.app-light-theme :where([class*="text-slate-100"]) {
+  color: #0f172a;
+}
+
+.app-light-theme :where([class*="text-slate-200"]) {
+  color: #334155;
+}
+
+.app-light-theme :where([class*="text-slate-300"], [class*="text-slate-400"], [class*="text-slate-500"]) {
+  color: #64748b;
+}
+
+.app-light-theme :where([class*="border-emerald-400"], [class*="border-sky-400"]) {
+  border-color: #bfdbfe;
+}
+
+.app-light-theme :where([class*="bg-emerald-500"], [class*="bg-sky-500"]) {
+  background: #eff6ff;
+}
+
+.app-light-theme :where([class*="bg-linear-to-r"][class*="from-blue"]) {
+  color: #ffffff;
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.18);
+}
+
+.app-light-theme :where(input:not([type="checkbox"]), select, textarea) {
+  width: 100%;
+  min-width: 0;
+  border-color: #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  outline-color: #2563eb;
+}
+
+.app-light-theme :where(input::placeholder, textarea::placeholder) {
+  color: #94a3b8;
+}
+
+.app-light-theme :where(input[type="range"]) {
+  width: min(14rem, 100%);
+  accent-color: #2563eb;
+}
+
+.app-light-theme :where(.shadow-card) {
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
+}
+
+.app-light-theme :where(.leaflet-container) {
+  background: #dbeafe;
+}

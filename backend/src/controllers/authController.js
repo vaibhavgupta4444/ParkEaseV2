@@ -1,0 +1,270 @@
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import User from "../models/User.js";
+
+const signToken = (userId) =>
+  jwt.sign({ userId }, process.env.JWT_SECRET, {
+    expiresIn: "7d",
+  });
+
+export const register = async (req, res) => {
+  try {
+    const { name, email, password, role } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: "Name, email and password are required" });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    }
+
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      return res.status(409).json({ message: "User already exists" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = await User.create({
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      password: hashedPassword,
+      role: ["vendor", "operator", "admin"].includes(role) ? role : "user",
+    });
+
+    const token = signToken(user._id);
+
+    return res.status(201).json({
+      message: "Registration successful",
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+export const updateProfile = async (req, res) => {
+  try {
+    const { name, email, emailNotifications } = req.body;
+
+    if (name) req.user.name = name.trim();
+    if (email) req.user.email = email.toLowerCase().trim();
+    if (emailNotifications !== undefined) {
+      req.user.preferences = req.user.preferences || {};
+      req.user.preferences.emailNotifications = Boolean(emailNotifications);
+    }
+
+    await req.user.save();
+
+    return res.status(200).json({
+      message: "Profile updated",
+      user: {
+        id: req.user._id,
+        name: req.user.name,
+        email: req.user.email,
+        role: req.user.role,
+        preferences: req.user.preferences,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+export const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "Current and new password are required" });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    }
+
+    const user = await User.findById(req.userId);
+    const passwordMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!passwordMatch) {
+      return res.status(401).json({ message: "Current password is incorrect" });
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+
+    return res.status(200).json({ message: "Password changed" });
+  } catch (error) {
+    return res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+export const login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!user) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (!passwordMatch) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    const token = signToken(user._id);
+
+    return res.status(200).json({
+      message: "Login successful",
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+export const verifyEmail = async (req, res) => {
+  try {
+    const { token } = req.params;
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const user = await User.findById(decoded.userId);
+      if (!user) {
+         return res.status(404).json({ message: "User not found" });
+      }
+      user.emailVerified = true;
+      await user.save();
+      return res.status(200).json({ message: "Email verified successfully" });
+    } catch(err) {
+      return res.status(400).json({ message: "Invalid or expired token" });
+    }
+  } catch (error) {
+    return res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+export const sendOTP = async (req, res) => {
+  try {
+    const { phone } = req.body;
+    if (!phone) return res.status(400).json({ message: "Phone number is required" });
+    
+    // Mock OTP Generation
+    const otp = "123456"; 
+    console.log(`[MOCK OTP SERVICE] Sending OTP ${otp} to phone ${phone}`);
+    return res.status(200).json({ message: "OTP sent successfully (mock)" });
+  } catch (error) {
+    return res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+export const verifyOTP = async (req, res) => {
+  try {
+    const { phone, otp } = req.body;
+    if (!phone || !otp) return res.status(400).json({ message: "Phone and OTP are required" });
+    
+    // Mock OTP Verification
+    if (otp === "123456") {
+      const user = await User.findOne({ phone });
+      if (user) {
+        user.phoneVerified = true;
+        await user.save();
+      }
+      return res.status(200).json({ message: "OTP verified successfully" });
+    } else {
+      return res.status(400).json({ message: "Invalid OTP" });
+    }
+  } catch (error) {
+    return res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // Mock sending reset link
+    const resetToken = signToken(user._id); // Simplified for mock
+    console.log(`[MOCK EMAIL SERVICE] Password reset link: http://localhost:5173/reset-password/${resetToken}`);
+    return res.status(200).json({ message: "Password reset link sent (mock)" });
+  } catch (error) {
+    return res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+export const resetPassword = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { newPassword } = req.body;
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.userId);
+    
+    if (!user) return res.status(404).json({ message: "User not found" });
+    if (newPassword.length < 6) return res.status(400).json({ message: "Password must be at least 6 characters" });
+    
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+    return res.status(200).json({ message: "Password reset successful" });
+  } catch (error) {
+    return res.status(400).json({ message: "Invalid or expired token", error: error.message });
+  }
+};
+
+export const googleAuth = async (req, res) => {
+  try {
+    const { email, name, googleId, profilePhoto } = req.body;
+    if (!email || !googleId) return res.status(400).json({ message: "Email and Google ID are required" });
+
+    let user = await User.findOne({ email: email.toLowerCase() });
+    
+    if (user) {
+      if (!user.googleId) {
+        user.googleId = googleId;
+        user.profilePhoto = user.profilePhoto || profilePhoto;
+        await user.save();
+      }
+    } else {
+      user = await User.create({
+        name,
+        fullName: name,
+        email: email.toLowerCase(),
+        googleId,
+        profilePhoto,
+        emailVerified: true
+      });
+    }
+
+    const token = signToken(user._id);
+    return res.status(200).json({
+      message: "Google login successful",
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      }
+    });
+
+  } catch (error) {
+    return res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
