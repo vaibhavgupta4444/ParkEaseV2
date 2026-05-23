@@ -6,6 +6,8 @@ export const connectDB = async () => {
     console.log("MongoDB connected");
   } catch (error) {
     console.error("MongoDB connection failed:", error.message);
-    process.exit(1);
+    // Re-throw instead of process.exit() — exiting inside a Vercel serverless
+    // function tears down the container and prevents error responses being sent.
+    throw error;
   }
 };

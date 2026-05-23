@@ -4,9 +4,13 @@
   "private": true,
   "type": "module",
   "main": "src/server.js",
+  "engines": {
+    "node": ">=18.x"
+  },
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
+    "build": "echo 'No build step required'",
     "seed": "node src/seed.js"
   },
   "dependencies": {
