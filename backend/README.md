@@ -21,3 +21,4 @@ npm run dev
 
 - Reads environment values from `server/.env`.
 - Serves auth, parking, charging, booking, vendor, and payment APIs.
+
