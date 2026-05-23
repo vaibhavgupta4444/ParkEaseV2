@@ -1,4 +1,5 @@
 import Booking from "../models/Booking.js";
+import User from "../models/User.js";
 import ParkingLot from "../models/ParkingLot.js";
 import ChargingStation from "../models/ChargingStation.js";
 
@@ -6,6 +7,8 @@ const calculateDurationHours = (startTime, endTime) => {
   const diffMs = new Date(endTime) - new Date(startTime);
   return Math.max(diffMs / (1000 * 60 * 60), 0);
 };
+
+const vehicleNumberPattern = /^[A-Z]{2}[0-9]{2}[A-Z]{1,2}[0-9]{4}$/;
 
 const findAvailableSlot = (resource, requestedSlotId) => {
   if (!resource.slots?.length && resource.capacity?.total) {
@@ -47,12 +50,17 @@ const markSlot = async (resource, slotId, isAvailable) => {
 
 export const createBooking = async (req, res) => {
   try {
-    const { bookingType, targetId, facilityId, slotId, startTime, endTime } = req.body;
+    const { bookingType, targetId, facilityId, slotId, startTime, endTime, vehicleNumber } = req.body;
     const resolvedTargetId = targetId || facilityId;
-    let resolvedBookingType = bookingType;
+    let resolvedBookingType = bookingType === "ev" ? "charging" : bookingType;
 
-    if (!resolvedTargetId || !startTime || !endTime) {
-      return res.status(400).json({ message: "facilityId/targetId, startTime, and endTime are required" });
+    if (!resolvedTargetId || !startTime || !endTime || !vehicleNumber) {
+      return res.status(400).json({ message: "facilityId/targetId, startTime, endTime, and vehicleNumber are required" });
+    }
+
+    const normalizedVehicleNumber = vehicleNumber.toUpperCase().replace(/\s+/g, "");
+    if (!vehicleNumberPattern.test(normalizedVehicleNumber)) {
+      return res.status(400).json({ message: "Enter a valid Indian vehicle number" });
     }
 
     if (new Date(endTime) <= new Date(startTime)) {
@@ -85,6 +93,7 @@ export const createBooking = async (req, res) => {
         endTime,
         totalPrice,
         currency: lot.pricing?.currency || "USD",
+        vehicleNumber: normalizedVehicleNumber,
         status: "pending",
         paymentStatus: "pending",
       });
@@ -121,6 +130,7 @@ export const createBooking = async (req, res) => {
         endTime,
         totalPrice,
         currency: station.pricing?.currency || "USD",
+        vehicleNumber: normalizedVehicleNumber,
         status: "pending",
         paymentStatus: "pending",
       });
@@ -206,6 +216,90 @@ export const getAllBookings = async (_req, res) => {
       .sort({ createdAt: -1 });
 
     return res.status(200).json({ message: "Bookings retrieved", data: bookings });
+  } catch (error) {
+    return res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+export const getBookingById = async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id)
+      .populate("parkingLot", "name location pricing imageUrl")
+      .populate("chargingStation", "name location pricing imageUrl provider");
+
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    const canView =
+      booking.user.toString() === req.userId || ["admin", "operator", "vendor"].includes(req.user.role);
+
+    if (!canView) {
+      return res.status(403).json({ message: "Unauthorized to view this booking" });
+    }
+
+    // If vehicleNumber missing, try to populate from user's saved vehicles and persist
+    if (!booking.vehicleNumber) {
+      try {
+        const owner = await User.findById(booking.user);
+        const plate = owner?.vehicles?.[0]?.plateNumber;
+        if (plate) {
+          booking.vehicleNumber = plate.toUpperCase().replace(/\s+/g, "");
+          await booking.save();
+        }
+      } catch (err) {
+        // ignore errors here; we still return booking
+      }
+    }
+
+    return res.status(200).json({ message: "Booking retrieved", data: booking });
+  } catch (error) {
+    return res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+const formatAddress = (address = {}) =>
+  [address.street, address.city, address.state, address.zipCode].filter(Boolean).join(", ");
+
+export const getBookingNavigation = async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id)
+      .populate("parkingLot", "name location")
+      .populate("chargingStation", "name location");
+
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    if (booking.user.toString() !== req.userId) {
+      return res.status(403).json({ message: "Unauthorized to navigate this booking" });
+    }
+
+    if (new Date(booking.endTime) <= new Date()) {
+      return res.status(403).json({ message: "This booking has expired" });
+    }
+
+    const facility = booking.bookingType === "parking" ? booking.parkingLot : booking.chargingStation;
+    if (!facility?.location?.coordinates?.length) {
+      return res.status(404).json({ message: "Facility location not found" });
+    }
+
+    return res.status(200).json({
+      message: "Navigation details retrieved",
+      data: {
+        bookingId: booking._id,
+        bookingRef: booking.bookingRef,
+        slotId: booking.slotId,
+        checkoutTime: booking.endTime,
+        facility: {
+          name: facility.name,
+          address: formatAddress(facility.location.address),
+          location: {
+            coordinates: facility.location.coordinates,
+          },
+        },
+      },
+    });
   } catch (error) {
     return res.status(500).json({ message: "Server error", error: error.message });
   }

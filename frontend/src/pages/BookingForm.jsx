@@ -1,6 +1,7 @@
 import { useState } from "react";
 import AppFonts from "../components/ui/AppFonts";
 import { calculateBookingTotal } from "../utils/parking";
+import { validateField } from "../utils/validation";
 
 function FormField({ label, field, value, error, placeholder, type = "text", onChange }) {
   return (
@@ -11,6 +12,7 @@ function FormField({ label, field, value, error, placeholder, type = "text", onC
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(field, e.target.value)}
+        required={label.includes("*")}
         style={{
           width: "100%",
           padding: "10px 14px",
@@ -42,13 +44,14 @@ export default function BookingForm({ lot, slot, date, duration, onPay, onBack }
   const validate = () => {
     const validationErrors = {};
 
-    if (!form.name.trim()) validationErrors.name = "Required";
-    if (!/^\d{10}$/.test(form.phone)) validationErrors.phone = "Enter valid 10-digit number";
-    if (!/^[A-Z]{2}\s?\d{2}\s?[A-Z]{1,2}\s?\d{4}$/i.test(form.vehicle)) {
-      validationErrors.vehicle = "Enter valid vehicle number (e.g. DL 01 AB 1234)";
-    }
-    if (form.email && !/\S+@\S+\.\S+/.test(form.email)) validationErrors.email = "Invalid email";
+    validationErrors.name = validateField("name", form.name);
+    validationErrors.phone = validateField("phone", form.phone);
+    validationErrors.vehicle = validateField("vehicleNumber", form.vehicle);
+    validationErrors.email = validateField("email", form.email, { required: false });
 
+    Object.keys(validationErrors).forEach((key) => {
+      if (!validationErrors[key]) delete validationErrors[key];
+    });
     setErrors(validationErrors);
     return Object.keys(validationErrors).length === 0;
   };

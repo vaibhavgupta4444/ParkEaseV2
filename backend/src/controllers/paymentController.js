@@ -1,5 +1,6 @@
 import Booking from "../models/Booking.js";
 import Payment from "../models/Payment.js";
+import WalletTransaction from "../models/WalletTransaction.js";
 
 const stripeRequest = async (path, body, method = "POST") => {
   if (!process.env.STRIPE_SECRET_KEY) {
@@ -102,6 +103,21 @@ export const verifyPayment = async (req, res) => {
       { new: true }
     );
 
+    await WalletTransaction.findOneAndUpdate(
+      { user: req.userId, reference: paymentIntentId },
+      {
+        $setOnInsert: {
+          user: req.userId,
+          type: "debit",
+          amount: booking.totalPrice || 0,
+          reference: paymentIntentId,
+          description: `Payment for booking ${booking.bookingRef}`,
+          booking: booking._id,
+        },
+      },
+      { new: true, upsert: true }
+    );
+
     return res.status(200).json({
       message: "Payment verified",
       data: {
@@ -111,5 +127,49 @@ export const verifyPayment = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ message: "Payment verification failed", error: error.message });
+  }
+};
+
+export const getPaymentTransactions = async (req, res) => {
+  try {
+    const existingTransactions = await WalletTransaction.find({ user: req.userId }).select("reference");
+    const existingReferences = new Set(existingTransactions.map((transaction) => transaction.reference));
+
+    const succeededPayments = await Payment.find({ status: "succeeded" })
+      .populate({
+        path: "booking",
+        match: { user: req.userId },
+        select: "bookingRef bookingType totalPrice user",
+      })
+      .sort({ updatedAt: -1 });
+
+    const missingTransactions = succeededPayments
+      .filter((payment) => payment.booking && !existingReferences.has(payment.paymentId || payment.orderId))
+      .map((payment) => ({
+        user: req.userId,
+        type: "debit",
+        amount: payment.booking.totalPrice || payment.amount / 100 || 0,
+        reference: payment.paymentId || payment.orderId,
+        description: `Payment for booking ${payment.booking.bookingRef}`,
+        booking: payment.booking._id,
+        createdAt: payment.updatedAt || payment.createdAt,
+        updatedAt: payment.updatedAt || payment.createdAt,
+      }));
+
+    if (missingTransactions.length > 0) {
+      await WalletTransaction.insertMany(missingTransactions, { ordered: false });
+    }
+
+    const transactions = await WalletTransaction.find({ user: req.userId })
+      .populate("booking", "bookingRef bookingType totalPrice")
+      .sort({ createdAt: -1 })
+      .limit(20);
+
+    return res.status(200).json({
+      message: "Transactions fetched",
+      data: transactions,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Transactions fetch failed", error: error.message });
   }
 };

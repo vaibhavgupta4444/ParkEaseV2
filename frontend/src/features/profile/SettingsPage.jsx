@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { changePassword, updateProfile } from "../../services/authService";
+import { validateField } from "../../utils/validation";
 
 export default function SettingsPage({ user, token, onUserUpdate }) {
   const [profile, setProfile] = useState({
@@ -13,6 +14,8 @@ export default function SettingsPage({ user, token, onUserUpdate }) {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [profileErrors, setProfileErrors] = useState({});
+  const [passwordErrors, setPasswordErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
   const saveProfile = async (event) => {
@@ -20,6 +23,16 @@ export default function SettingsPage({ user, token, onUserUpdate }) {
     setLoading(true);
     setError("");
     setMessage("");
+
+    const nextErrors = {
+      name: validateField("name", profile.name),
+      email: validateField("email", profile.email),
+    };
+    setProfileErrors(nextErrors);
+    if (Object.values(nextErrors).some(Boolean)) {
+      setLoading(false);
+      return;
+    }
 
     try {
       const response = await updateProfile(profile, token);
@@ -38,6 +51,16 @@ export default function SettingsPage({ user, token, onUserUpdate }) {
     setLoading(true);
     setError("");
     setMessage("");
+
+    const nextErrors = {
+      currentPassword: String(passwords.currentPassword ?? "").trim() ? "" : "Please enter your current password",
+      newPassword: validateField("password", passwords.newPassword),
+    };
+    setPasswordErrors(nextErrors);
+    if (Object.values(nextErrors).some(Boolean)) {
+      setLoading(false);
+      return;
+    }
 
     try {
       await changePassword(passwords, token);
@@ -66,7 +89,9 @@ export default function SettingsPage({ user, token, onUserUpdate }) {
                 value={profile.name}
                 onChange={(event) => setProfile((prev) => ({ ...prev, name: event.target.value }))}
                 className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100"
+                required
               />
+              {profileErrors.name && <span className="text-xs text-rose-200">{profileErrors.name}</span>}
             </label>
             <label className="grid gap-2 text-sm text-slate-300">
               Email
@@ -75,7 +100,9 @@ export default function SettingsPage({ user, token, onUserUpdate }) {
                 value={profile.email}
                 onChange={(event) => setProfile((prev) => ({ ...prev, email: event.target.value }))}
                 className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100"
+                required
               />
+              {profileErrors.email && <span className="text-xs text-rose-200">{profileErrors.email}</span>}
             </label>
             <label className="flex items-center gap-2 text-sm text-slate-300">
               <input
@@ -103,6 +130,7 @@ export default function SettingsPage({ user, token, onUserUpdate }) {
                   onChange={(event) => setPasswords((prev) => ({ ...prev, currentPassword: event.target.value }))}
                   className="w-full border border-border rounded-lg px-4 py-2.5 pr-11 text-sm text-textPrimary bg-surface placeholder:text-textMuted outline-none focus:border-primary focus:ring-2 focus:ring-blue-100 transition-all"
                   placeholder="••••••••"
+                  required
                 />
                 <button
                   type="button"
@@ -113,6 +141,7 @@ export default function SettingsPage({ user, token, onUserUpdate }) {
                   {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+              {passwordErrors.currentPassword && <span className="text-xs text-rose-200">{passwordErrors.currentPassword}</span>}
             </label>
             <label className="grid gap-2 text-sm text-slate-300">
               New password
@@ -123,6 +152,8 @@ export default function SettingsPage({ user, token, onUserUpdate }) {
                   onChange={(event) => setPasswords((prev) => ({ ...prev, newPassword: event.target.value }))}
                   className="w-full border border-border rounded-lg px-4 py-2.5 pr-11 text-sm text-textPrimary bg-surface placeholder:text-textMuted outline-none focus:border-primary focus:ring-2 focus:ring-blue-100 transition-all"
                   placeholder="••••••••"
+                  minLength={6}
+                  required
                 />
                 <button
                   type="button"
@@ -133,6 +164,7 @@ export default function SettingsPage({ user, token, onUserUpdate }) {
                   {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+              {passwordErrors.newPassword && <span className="text-xs text-rose-200">{passwordErrors.newPassword}</span>}
             </label>
           </div>
           <button disabled={loading} className="mt-5 w-full rounded-xl border border-sky-400/50 bg-sky-500/10 px-4 py-2 text-sm font-semibold text-sky-100">

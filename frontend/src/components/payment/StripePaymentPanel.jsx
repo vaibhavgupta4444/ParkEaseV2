@@ -7,8 +7,12 @@ import { formatCurrency, getApiErrorMessage } from "../../utils/formatters";
 let stripePromise;
 
 const loadStripe = () => {
+  const key = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+  if (!key || key === "pk_test_your_key" || !key.startsWith("pk_")) {
+    return Promise.reject(new Error("Stripe is not configured. Please set VITE_STRIPE_PUBLISHABLE_KEY in frontend/.env."));
+  }
   if (window.Stripe) {
-    return Promise.resolve(window.Stripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY));
+    return Promise.resolve(window.Stripe(key));
   }
 
   if (!stripePromise) {
@@ -16,7 +20,7 @@ const loadStripe = () => {
       const script = document.createElement("script");
       script.src = "https://js.stripe.com/v3/";
       script.async = true;
-      script.onload = () => resolve(window.Stripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY));
+      script.onload = () => resolve(window.Stripe(key));
       script.onerror = () => reject(new Error("Unable to load Stripe"));
       document.head.appendChild(script);
     });
@@ -32,6 +36,7 @@ export default function StripePaymentPanel({ booking, token, onPaid }) {
   const [paymentOrder, setPaymentOrder] = useState(null);
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(false);
+  const [cardComplete, setCardComplete] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -41,17 +46,16 @@ export default function StripePaymentPanel({ booking, token, onPaid }) {
       if (!booking?._id || !token) return;
 
       setLoading(true);
+      setReady(false);
+      setCardComplete(false);
       setError("");
 
       try {
-        if (!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY) {
-          throw new Error("VITE_STRIPE_PUBLISHABLE_KEY is not configured");
-        }
-
         const order = await createPaymentOrder(booking._id, token);
         const stripe = await loadStripe();
-        const elements = stripe.elements({ clientSecret: order.data.clientSecret });
+        const elements = stripe.elements();
         const card = elements.create("card", {
+          hidePostalCode: true,
           style: {
             base: {
               color: "#0f172a",
@@ -68,6 +72,10 @@ export default function StripePaymentPanel({ booking, token, onPaid }) {
         card.mount(cardRef.current);
         stripeRef.current = stripe;
         cardElementRef.current = card;
+        card.on("change", (event) => {
+          setCardComplete(Boolean(event.complete));
+          setError(event.error?.message || "");
+        });
         setPaymentOrder(order.data);
         setReady(true);
       } catch (err) {
@@ -90,6 +98,15 @@ export default function StripePaymentPanel({ booking, token, onPaid }) {
   }, [booking?._id, token]);
 
   const handlePay = async () => {
+    if (!ready || !stripeRef.current || !cardElementRef.current || !paymentOrder) {
+      setError("Payment form is still loading. Please wait a moment.");
+      return;
+    }
+    if (!cardComplete) {
+      setError("Please enter complete card details.");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -141,7 +158,7 @@ export default function StripePaymentPanel({ booking, token, onPaid }) {
       <button
         type="button"
         onClick={handlePay}
-        disabled={!ready || loading}
+      disabled={!ready || loading}
         className="btn-primary mt-4 flex w-full items-center justify-center gap-2"
       >
         {loading && <LoadingSpinner />}

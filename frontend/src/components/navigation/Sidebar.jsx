@@ -49,14 +49,14 @@ export default function Sidebar({ isOpen, onClose, user, onLogout }) {
   return (
     <>
       <div
-        className={`fixed inset-0 z-[90] bg-black/50 transition-opacity lg:hidden ${
+        className={`fixed inset-0 z-[90] bg-black/50 transition-opacity md:hidden ${
           isOpen ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
         onClick={onClose}
         aria-hidden="true"
       />
       <aside
-        className={`fixed left-0 top-0 z-[100] flex h-screen w-[280px] flex-col bg-secondary text-white shadow-xl transition-transform duration-300 lg:hidden ${
+        className={`fixed left-0 top-0 z-[100] flex h-screen w-[280px] flex-col bg-secondary text-white shadow-xl transition-transform duration-300 md:hidden ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
         aria-label="Mobile navigation"

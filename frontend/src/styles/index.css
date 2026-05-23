@@ -204,6 +204,75 @@ button:disabled {
   background: #DBEAFE;
 }
 
+.leaflet-routing-container {
+  display: none;
+}
+
+.navigation-map-height {
+  height: calc(100dvh - 120px);
+  min-height: 400px;
+}
+
+.user-location-dot {
+  position: relative;
+  width: 40px;
+  height: 40px;
+}
+
+.blue-dot {
+  width: 16px;
+  height: 16px;
+  background: #2563EB;
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.4);
+  z-index: 2;
+}
+
+.pulse-ring {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(37, 99, 235, 0.2);
+  top: 0;
+  left: 0;
+  animation: pulse 2s ease-out infinite;
+}
+
+.pulse-ring.delay {
+  animation-delay: 1s;
+}
+
+.parking-destination-pin {
+  display: flex;
+  height: 42px;
+  width: 42px;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid #fff;
+  border-radius: 999px;
+  background: #0F172A;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 900;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.24);
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(0.5);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
 .map-mobile-height {
   height: calc(100vh - 64px);
 }

@@ -7,12 +7,33 @@ const signToken = (userId) =>
     expiresIn: "7d",
   });
 
+const toClientUser = (user) => ({
+  id: user._id,
+  name: user.name,
+  email: user.email,
+  phone: user.phone,
+  role: user.role,
+  preferences: user.preferences,
+  vehicles: user.vehicles,
+  walletBalance: user.walletBalance,
+  profilePhoto: user.profilePhoto,
+  createdAt: user.createdAt,
+});
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const phonePattern = /^[6-9]\d{9}$/;
+const vehicleNumberPattern = /^[A-Z]{2}[0-9]{2}[A-Z]{1,2}[0-9]{4}$/;
+
 export const register = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: "Name, email and password are required" });
+    }
+
+    if (!emailPattern.test(email.trim())) {
+      return res.status(400).json({ message: "Please enter a valid email address" });
     }
 
     if (password.length < 6) {
@@ -37,12 +58,7 @@ export const register = async (req, res) => {
     return res.status(201).json({
       message: "Registration successful",
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
+      user: toClientUser(user),
     });
   } catch (error) {
     return res.status(500).json({ message: "Server error", error: error.message });
@@ -51,28 +67,100 @@ export const register = async (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    const { name, email, emailNotifications } = req.body;
+    const { name, email, phone, preferences, emailNotifications, smsNotifications, vehicles } = req.body;
 
-    if (name) req.user.name = name.trim();
-    if (email) req.user.email = email.toLowerCase().trim();
-    if (emailNotifications !== undefined) {
-      req.user.preferences = req.user.preferences || {};
-      req.user.preferences.emailNotifications = Boolean(emailNotifications);
+    if (!name?.trim()) {
+      return res.status(400).json({ message: "Name is required" });
     }
 
-    await req.user.save();
+    if (!email?.trim()) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    if (!emailPattern.test(email.trim())) {
+      return res.status(400).json({ message: "Please enter a valid email address" });
+    }
+
+    if (phone?.trim() && !phonePattern.test(phone.trim())) {
+      return res.status(400).json({ message: "Please enter a valid 10-digit Indian mobile number" });
+    }
+
+    const existingUser = await User.findOne({
+      email: email.toLowerCase().trim(),
+      _id: { $ne: req.user._id },
+    });
+
+    if (existingUser) {
+      return res.status(409).json({ message: "Email is already in use" });
+    }
+
+    const update = {
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+    };
+
+    if (phone !== undefined) {
+      update.phone = phone?.trim() || "";
+    }
+
+    let nextPreferences = req.user.preferences?.toObject?.() || req.user.preferences || {};
+    if (preferences && typeof preferences === "object") {
+      nextPreferences = {
+        ...nextPreferences,
+        ...preferences,
+      };
+    }
+    if (emailNotifications !== undefined) {
+      nextPreferences.emailNotifications = Boolean(emailNotifications);
+    }
+    if (smsNotifications !== undefined) {
+      nextPreferences.smsNotifications = Boolean(smsNotifications);
+    }
+    update.preferences = nextPreferences;
+
+    if (Array.isArray(vehicles)) {
+      const nextVehicles = vehicles.map((vehicle) => {
+        const plateNumber = String(vehicle.plateNumber || "").toUpperCase().replace(/\s+/g, "");
+        return {
+          nickname: String(vehicle.nickname || plateNumber || "").trim(),
+          plateNumber,
+          type: vehicle.type,
+          make: vehicle.make || "",
+          model: vehicle.model || "",
+          isDefault: Boolean(vehicle.isDefault),
+        };
+      });
+
+      const invalidVehicle = nextVehicles.find(
+        (vehicle) => !vehicle.nickname || !vehicle.type || !vehicleNumberPattern.test(vehicle.plateNumber)
+      );
+
+      if (invalidVehicle) {
+        return res.status(400).json({ message: "Each vehicle needs a nickname, type, and valid license plate" });
+      }
+
+      update.vehicles = nextVehicles;
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.userId,
+      { $set: update },
+      { new: true, runValidators: true, context: "query" }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
     return res.status(200).json({
       message: "Profile updated",
-      user: {
-        id: req.user._id,
-        name: req.user.name,
-        email: req.user.email,
-        role: req.user.role,
-        preferences: req.user.preferences,
-      },
+      user: toClientUser(updatedUser),
     });
   } catch (error) {
+    if (error.name === "ValidationError") {
+      return res.status(400).json({ message: error.message });
+    }
+
     return res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -127,12 +215,7 @@ export const login = async (req, res) => {
     return res.status(200).json({
       message: "Login successful",
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
+      user: toClientUser(user),
     });
   } catch (error) {
     return res.status(500).json({ message: "Server error", error: error.message });
@@ -256,12 +339,7 @@ export const googleAuth = async (req, res) => {
     return res.status(200).json({
       message: "Google login successful",
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      }
+      user: toClientUser(user)
     });
 
   } catch (error) {

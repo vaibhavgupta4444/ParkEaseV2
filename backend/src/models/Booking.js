@@ -24,6 +24,11 @@ const bookingSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    vehicleNumber: {
+      type: String,
+      trim: true,
+      uppercase: true,
+    },
     startTime: {
       type: Date,
       required: true,

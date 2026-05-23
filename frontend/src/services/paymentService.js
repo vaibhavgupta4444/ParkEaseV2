@@ -33,3 +33,9 @@ export const verifyPayment = ({ bookingId, paymentIntentId }, token) =>
     payload: { bookingId, paymentIntentId },
     token,
   });
+
+export const getPaymentTransactions = (token) =>
+  request("/payments/transactions", {
+    method: "GET",
+    token,
+  });

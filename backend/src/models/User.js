@@ -93,6 +93,7 @@ const userSchema = new mongoose.Schema(
     },
     vehicles: [
       {
+        nickname: String,
         plateNumber: String,
         type: {
           type: String,

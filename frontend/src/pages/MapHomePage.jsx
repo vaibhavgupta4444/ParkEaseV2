@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { MapContainer, TileLayer, Popup, CircleMarker, ZoomControl, useMapEvents } from "react-leaflet";
 import { ChevronUp, Crosshair, List, Menu, Search } from "lucide-react";
+import BrandLogo from "../components/navigation/BrandLogo";
 import Sidebar from "../components/navigation/Sidebar";
 import EmptyState from "../components/ui/EmptyState";
 import ErrorState from "../components/ui/ErrorState";
@@ -57,7 +58,10 @@ export default function MapHomePage({ user, onLogout }) {
 
   const handleSearch = async (e) => {
     e.preventDefault();
-    if (!searchQuery.trim()) return;
+    if (!searchQuery.trim()) {
+      toast.error("Please enter a location to search");
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(searchQuery)}`);
@@ -107,20 +111,19 @@ export default function MapHomePage({ user, onLogout }) {
       <Sidebar isOpen={isNavOpen} onClose={() => setIsNavOpen(false)} user={user} onLogout={onLogout} />
 
       <div className="z-50 shrink-0 bg-surface shadow-sm backdrop-blur-md">
-        <div className="flex h-16 items-center justify-between px-4 md:px-6">
+        <div className="flex h-20 items-center justify-between px-4 md:px-6">
           <div className="flex items-center gap-3">
              <button
                type="button"
                onClick={() => setIsNavOpen(true)}
-               className="flex h-10 w-10 items-center justify-center rounded-lg text-textSecondary transition hover:bg-gray-100 hover:text-primary lg:hidden"
+               className="flex h-10 w-10 items-center justify-center rounded-lg text-textSecondary transition hover:bg-gray-100 hover:text-primary md:hidden"
                aria-label="Open navigation"
              >
                <Menu size={22} />
              </button>
-             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-xl font-bold text-white">
-                P
-              </div>
-              <h1 className="text-xl font-bold text-secondary">ParkEase</h1>
+             <button type="button" onClick={() => navigate("/map")} aria-label="Go to map home">
+               <BrandLogo />
+             </button>
           </div>
           
           <div className="hidden flex-1 max-w-xl mx-8 md:flex">
@@ -131,6 +134,7 @@ export default function MapHomePage({ user, onLogout }) {
                 className="field-input rounded-full pr-12"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
+                required
               />
               <button type="submit" className="absolute right-3 text-textMuted transition hover:text-primary" aria-label="Search">
                  <Search size={18} />
@@ -138,7 +142,7 @@ export default function MapHomePage({ user, onLogout }) {
             </form>
           </div>
 
-          <div className="hidden items-center gap-4 lg:flex">
+          <div className="hidden items-center gap-4 md:flex">
              <button onClick={() => navigate("/bookings")} className="text-sm font-semibold text-textSecondary transition hover:text-primary">My Bookings</button>
              <button onClick={() => navigate("/profile")} className="text-sm font-semibold text-textSecondary transition hover:text-primary">Profile</button>
              <button onClick={onLogout} className="text-sm font-semibold text-error transition hover:text-red-700">Logout</button>
@@ -153,6 +157,7 @@ export default function MapHomePage({ user, onLogout }) {
                className="field-input rounded-full py-2"
                value={searchQuery}
                onChange={(e) => setSearchQuery(e.target.value)}
+               required
              />
            </form>
 
@@ -178,8 +183,8 @@ export default function MapHomePage({ user, onLogout }) {
       </div>
 
       <div className="relative flex flex-1 overflow-hidden">
-        <div className={`fixed inset-x-0 bottom-0 z-40 flex h-1/2 flex-col rounded-t-2xl bg-surface shadow-2xl transition-transform duration-300 lg:relative lg:inset-auto lg:h-full lg:w-[400px] lg:translate-y-0 lg:rounded-none lg:shadow-none ${isListOpen ? "translate-y-0" : "translate-y-full lg:translate-y-0"}`}>
-          <div className="mx-auto mt-2 h-1.5 w-12 rounded-full bg-border lg:hidden" />
+        <div className={`fixed inset-x-0 bottom-0 z-40 flex h-1/2 flex-col rounded-t-2xl bg-surface shadow-2xl transition-transform duration-300 md:relative md:inset-auto md:h-full md:w-[400px] md:translate-y-0 md:rounded-none md:shadow-none ${isListOpen ? "translate-y-0" : "translate-y-full md:translate-y-0"}`}>
+          <div className="mx-auto mt-2 h-1.5 w-12 rounded-full bg-border md:hidden" />
           <div className="flex items-center justify-between border-b border-border p-4">
             <h2 className="text-lg font-bold text-secondary">Nearby Facilities</h2>
             <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-primary">{facilities.length}</span>
@@ -293,14 +298,14 @@ export default function MapHomePage({ user, onLogout }) {
           <button
             type="button"
             onClick={locateUser}
-            className="absolute bottom-24 right-4 z-20 flex h-12 w-12 items-center justify-center rounded-full bg-surface text-primary shadow-lg transition hover:bg-blue-50 lg:bottom-6"
+            className="absolute bottom-24 right-4 z-20 flex h-12 w-12 items-center justify-center rounded-full bg-surface text-primary shadow-lg transition hover:bg-blue-50 md:bottom-6"
             aria-label="Locate me"
           >
             <Crosshair size={20} />
           </button>
 
           <button 
-            className="absolute bottom-6 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full bg-secondary px-6 py-3 font-bold text-white shadow-xl lg:hidden"
+            className="absolute bottom-6 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full bg-secondary px-6 py-3 font-bold text-white shadow-xl md:hidden"
             onClick={() => setIsListOpen(!isListOpen)}
           >
             {isListOpen ? <ChevronUp size={18} /> : <List size={18} />}
@@ -308,8 +313,8 @@ export default function MapHomePage({ user, onLogout }) {
           </button>
 
           {selectedFacility && (
-            <div className="absolute inset-x-0 bottom-0 z-30 rounded-t-2xl bg-surface p-5 shadow-2xl lg:left-auto lg:right-6 lg:bottom-6 lg:w-80 lg:rounded-xl">
-              <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-border lg:hidden" />
+            <div className="absolute inset-x-0 bottom-0 z-30 rounded-t-2xl bg-surface p-5 shadow-2xl md:left-auto md:right-6 md:bottom-6 md:w-80 md:rounded-xl">
+              <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-border md:hidden" />
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h3 className="text-lg font-bold text-secondary">{selectedFacility.name}</h3>

@@ -10,6 +10,11 @@ import ProfilePage from "./features/profile/ProfilePage";
 import BookingHistory from "./features/dashboard/BookingHistory";
 import AuthModal from "./features/auth/AuthModal";
 
+import PaymentPage from "./pages/PaymentPage";
+import BookingDetailsPage from "./pages/BookingDetailsPage";
+import NavigatePage from "./pages/NavigatePage";
+import UserLayout from "./components/layout/UserLayout";
+
 const getStoredAuth = () => {
   const token = localStorage.getItem("token");
   const user = localStorage.getItem("user");
@@ -35,6 +40,11 @@ export default function App() {
     localStorage.removeItem("user");
     setAuth({ token: null, user: null });
     toast.success("Logged out successfully");
+  };
+
+  const handleUserUpdate = (user) => {
+    localStorage.setItem("user", JSON.stringify(user));
+    setAuth((prev) => ({ ...prev, user }));
   };
 
   const openLogin = () => setAuthModalConfig({ isOpen: true, mode: "login" });
@@ -102,26 +112,24 @@ export default function App() {
             )
           }
         />
-        <Route
-          path="/profile"
+        
+        {/* Dashboard Routes wrapped in UserLayout */}
+        <Route 
           element={
             isAuthenticated ? (
-              <ProfilePage user={auth.user} token={auth.token} onUpdateUser={(user) => setAuth(prev => ({ ...prev, user }))} />
+              <UserLayout user={auth.user} token={auth.token} onLogout={handleLogout} />
             ) : (
               <Navigate to="/" replace />
             )
           }
-        />
-        <Route
-          path="/bookings"
-          element={
-            isAuthenticated ? (
-              <BookingHistory token={auth.token} />
-            ) : (
-              <Navigate to="/" replace />
-            )
-          }
-        />
+        >
+          <Route path="/profile" element={<ProfilePage user={auth.user} token={auth.token} onUpdateUser={handleUserUpdate} />} />
+          <Route path="/bookings" element={<BookingHistory token={auth.token} />} />
+          <Route path="/bookings/:id" element={<BookingDetailsPage token={auth.token} />} />
+          <Route path="/navigate/:bookingId" element={<NavigatePage token={auth.token} />} />
+          <Route path="/payment/:id" element={<PaymentPage token={auth.token} />} />
+        </Route>
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 

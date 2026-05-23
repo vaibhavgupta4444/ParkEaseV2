@@ -15,7 +15,7 @@ export default function BookingsTab({ bookings, facilities, filters, setFilters,
             {facilities.map((facility) => <option key={facility._id} value={facility._id}>{facility.name}</option>)}
           </select>
           <select value={filters.status} onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value }))} className="rounded-xl border border-slate-300 px-3 py-2 text-sm">
-            <option value="">All statuses</option>
+            <option value="">All status</option>
             <option value="pending">Pending</option>
             <option value="confirmed">Confirmed</option>
             <option value="completed">Completed</option>

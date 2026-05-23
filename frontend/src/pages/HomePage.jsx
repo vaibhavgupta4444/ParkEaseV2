@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Bell, CalendarCheck, Car, Clock, Database, MapPin, Menu, Shield, Star, TriangleAlert, Wallet, X, Zap } from "lucide-react";
+import Navbar from "../components/navigation/Navbar";
 
 const HomePage = ({ onLogin, onSignup }) => {
   const [scrolled, setScrolled] = useState(false);
@@ -23,79 +24,7 @@ const HomePage = ({ onLogin, onSignup }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50">
-      {/* Navbar */}
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled ? "bg-white/90 backdrop-blur-lg shadow-lg" : "bg-transparent"
-      }`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-2">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-xl flex items-center justify-center">
-                <span className="text-white text-2xl font-bold">P</span>
-              </div>
-              <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">
-                ParkEase
-              </span>
-            </div>
-            <div className="hidden md:flex items-center space-x-8">
-              <button onClick={() => scrollToSection("home")} className="text-slate-600 hover:text-blue-600 transition-colors">Home</button>
-              <button onClick={() => scrollToSection("features")} className="text-slate-600 hover:text-blue-600 transition-colors">Features</button>
-              <button onClick={() => scrollToSection("how-it-works")} className="text-slate-600 hover:text-blue-600 transition-colors">How It Works</button>
-              <button onClick={() => scrollToSection("testimonials")} className="text-slate-600 hover:text-blue-600 transition-colors">Testimonials</button>
-              <button onClick={() => scrollToSection("download")} className="text-slate-600 hover:text-blue-600 transition-colors">Download</button>
-            </div>
-            <div className="flex items-center space-x-2 md:space-x-3">
-              <button
-                onClick={onLogin}
-                className="hidden sm:block px-5 py-2 text-blue-600 font-semibold hover:bg-blue-50 rounded-full transition-all"
-              >
-                Sign In
-              </button>
-              <button
-                onClick={onSignup}
-                className="px-4 py-2 sm:px-6 sm:py-2.5 bg-secondary text-white font-bold rounded-full hover:shadow-lg transform active:scale-95 transition-all text-sm sm:text-base"
-              >
-                Get Started
-              </button>
-              <button 
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden p-2 text-slate-600 hover:text-blue-600 transition-colors"
-              >
-                {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile Menu */}
-        <div className={`md:hidden overflow-hidden transition-all duration-300 ${mobileMenuOpen ? "max-h-96 border-b border-slate-100 bg-white" : "max-h-0"}`}>
-          <div className="px-4 pt-2 pb-6 space-y-2">
-            {[ 
-              { label: "Home", id: "home" },
-              { label: "Features", id: "features" },
-              { label: "How It Works", id: "how-it-works" },
-              { label: "Testimonials", id: "testimonials" },
-              { label: "Download", id: "download" }
-            ].map((link) => (
-              <button
-                key={link.id}
-                onClick={() => { scrollToSection(link.id); setMobileMenuOpen(false); }}
-                className="block w-full text-left px-4 py-3 text-base font-semibold text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
-              >
-                {link.label}
-              </button>
-            ))}
-            <div className="pt-4 border-t border-slate-100 sm:hidden">
-              <button
-                onClick={() => { onLogin(); setMobileMenuOpen(false); }}
-                className="w-full text-center py-3 font-bold text-blue-600"
-              >
-                Sign In
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navbar onLogin={onLogin} onSignup={onSignup} />
 
       {/* Hero Section */}
       <section id="home" className="relative pt-32 pb-20 overflow-hidden">

@@ -3,20 +3,39 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import BackButton from "../components/ui/BackButton";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
-import StripePaymentPanel from "../components/payment/StripePaymentPanel";
 import { createBooking } from "../services/bookingService";
 import { formatCurrency, formatDateTime, getApiErrorMessage } from "../utils/formatters";
 import { validateField } from "../utils/validation";
 
+const toLocalInputValue = (date) => {
+  const nextDate = new Date(date);
+  return new Date(nextDate.getTime() - nextDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+};
+
+const addHours = (value, hours) => {
+  const date = new Date(value);
+  date.setHours(date.getHours() + hours);
+  return toLocalInputValue(date);
+};
+
+const addMinutes = (value, minutes) => {
+  const date = new Date(value);
+  date.setMinutes(date.getMinutes() + minutes);
+  return toLocalInputValue(date);
+};
+
 export default function BookingSummary({ user, token }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { facility, type, selectedSlot, startTime, endTime, hours = 0, totalPrice = 0, baseRate = 0, isPeak } = location.state || {};
+  const { facility, type, selectedSlot, baseRate: initialBaseRate = 0 } = location.state || {};
+  const defaultStartTime = toLocalInputValue(new Date());
+  const defaultEndTime = addHours(defaultStartTime, 1);
 
+  const [bookingStartTime, setBookingStartTime] = useState(defaultStartTime);
+  const [bookingEndTime, setBookingEndTime] = useState(defaultEndTime);
   const [vehicleNumber, setVehicleNumber] = useState(user?.vehicles?.[0]?.plateNumber || "");
   const [couponCode, setCouponCode] = useState("");
   const [discount, setDiscount] = useState(0);
-  const [paymentBooking, setPaymentBooking] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
@@ -31,7 +50,15 @@ export default function BookingSummary({ user, token }) {
     );
   }
 
+  const startDate = new Date(bookingStartTime);
+  const endDate = new Date(bookingEndTime);
+  const hours = Math.max(0, (endDate - startDate) / (1000 * 60 * 60));
+  const baseRate = initialBaseRate || selectedSlot?.pricePerHour || facility.pricing?.hourlyRate || facility.pricing?.rate || 0;
+  const isPeak = startDate.getHours() >= 17 && startDate.getHours() <= 21;
+  const totalPrice = hours * baseRate * (isPeak ? 1.25 : 1);
   const finalPrice = Math.max(0, totalPrice - discount);
+  const minCheckoutTime = addMinutes(bookingStartTime, 1);
+  const scheduleError = endDate <= startDate ? "Check out time must be after check in time" : "";
 
   const updateVehicleNumber = (value) => {
     const next = value.toUpperCase();
@@ -69,12 +96,27 @@ export default function BookingSummary({ user, token }) {
     }
   };
 
+  const updateStartTime = (value) => {
+    setBookingStartTime(value);
+    if (new Date(bookingEndTime) <= new Date(value)) {
+      setBookingEndTime(addHours(value, 1));
+    }
+  };
+
+  const updateEndTime = (value) => {
+    if (new Date(value) <= new Date(bookingStartTime)) {
+      toast.error("Check out time must be after check in time");
+      return;
+    }
+    setBookingEndTime(value);
+  };
+
   const handleConfirmOrder = async () => {
     setSubmitted(true);
     const vehicleError = validateField("vehicleNumber", vehicleNumber);
     setFieldErrors((prev) => ({ ...prev, vehicleNumber: vehicleError }));
 
-    if (vehicleError) {
+    if (vehicleError || scheduleError) {
       toast.error("Please fix the errors below");
       return;
     }
@@ -88,14 +130,17 @@ export default function BookingSummary({ user, token }) {
           bookingType: type,
           targetId: facility._id,
           slotId: selectedSlot.slotId,
-          startTime,
-          endTime,
+          startTime: bookingStartTime,
+          endTime: bookingEndTime,
+          vehicleNumber,
         },
         token
       );
 
-      setPaymentBooking(response.data);
-      toast.success("Booking created. Complete payment to confirm.");
+      toast.success("Booking created. Proceeding to payment...");
+      navigate(`/payment/${response.data._id}`, {
+        state: { paymentBooking: response.data, facility, selectedSlot, startTime: bookingStartTime, endTime: bookingEndTime, finalPrice }
+      });
     } catch (err) {
       const message = getApiErrorMessage(err);
       setError(message);
@@ -105,18 +150,13 @@ export default function BookingSummary({ user, token }) {
     }
   };
 
-  const handlePaymentSuccess = (paymentData) => {
-    toast.success("Payment confirmed");
-    navigate("/booking/success", {
-      state: { paymentData, facility, selectedSlot, startTime, endTime, finalPrice },
-    });
-  };
-
   return (
     <div className="min-h-screen bg-background px-4 py-10 animate-fadeIn md:px-0">
       <div className="mx-auto max-w-5xl">
-        <BackButton label="Back to Facility Detail" />
-        <h1 className="mb-8 text-3xl font-bold text-secondary">Booking Summary</h1>
+        <div className="mb-8 flex items-center gap-3">
+          <BackButton label="Back to Facility Detail" />
+          <h1 className="text-3xl font-bold text-secondary">Booking Summary</h1>
+        </div>
 
         {error && <div className="mb-6 rounded-xl bg-red-50 p-4 font-medium text-error">{error}</div>}
 
@@ -143,16 +183,32 @@ export default function BookingSummary({ user, token }) {
             <div className="space-y-8 md:col-span-8">
               <section>
                 <h3 className="mb-4 border-b border-border pb-2 text-lg font-bold text-secondary">Schedule</h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-4 sm:grid-cols-2">
                   <div className="rounded-xl border border-border bg-gray-50 p-4">
-                    <p className="mb-1 text-xs font-bold uppercase text-textSecondary">Check In</p>
-                    <p className="font-bold text-textPrimary">{formatDateTime(startTime)}</p>
+                    <label className="mb-2 block text-xs font-bold uppercase text-textSecondary" htmlFor="checkInTime">Check In</label>
+                    <input
+                      id="checkInTime"
+                      type="datetime-local"
+                      value={bookingStartTime}
+                      onChange={(event) => updateStartTime(event.target.value)}
+                      className="field-input font-bold"
+                    />
+                    <p className="mt-2 text-xs font-semibold text-textSecondary">{formatDateTime(bookingStartTime)}</p>
                   </div>
                   <div className="rounded-xl border border-border bg-gray-50 p-4">
-                    <p className="mb-1 text-xs font-bold uppercase text-textSecondary">Check Out</p>
-                    <p className="font-bold text-textPrimary">{formatDateTime(endTime)}</p>
+                    <label className="mb-2 block text-xs font-bold uppercase text-textSecondary" htmlFor="checkOutTime">Check Out</label>
+                    <input
+                      id="checkOutTime"
+                      type="datetime-local"
+                      value={bookingEndTime}
+                      min={minCheckoutTime}
+                      onChange={(event) => updateEndTime(event.target.value)}
+                      className={`field-input font-bold ${scheduleError ? "field-input-error" : ""}`}
+                    />
+                    <p className="mt-2 text-xs font-semibold text-textSecondary">{formatDateTime(bookingEndTime)}</p>
                   </div>
                 </div>
+                {scheduleError && <p className="field-error">{scheduleError}</p>}
               </section>
 
               <section>
@@ -216,14 +272,10 @@ export default function BookingSummary({ user, token }) {
                 <p className="text-3xl font-black text-primary">{formatCurrency(finalPrice)}</p>
               </div>
 
-              {!paymentBooking ? (
-                <button type="button" onClick={handleConfirmOrder} disabled={loading} className="btn-primary flex w-full items-center justify-center gap-2 py-3">
-                  {loading && <LoadingSpinner />}
-                  {loading ? "Processing..." : "Proceed to Payment"}
-                </button>
-              ) : (
-                <StripePaymentPanel booking={paymentBooking} token={token} onPaid={handlePaymentSuccess} />
-              )}
+              <button type="button" onClick={handleConfirmOrder} disabled={loading} className="btn-primary flex w-full items-center justify-center gap-2 py-3">
+                {loading && <LoadingSpinner />}
+                {loading ? "Processing..." : "Confirm Booking & Proceed to Payment"}
+              </button>
             </div>
           </div>
         </div>

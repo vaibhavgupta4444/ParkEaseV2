@@ -48,8 +48,16 @@ export const cancelBooking = (bookingId, token) =>
     token,
   });
 
+export const getBookingById = (bookingId, token) =>
+  request(`/bookings/${bookingId}`, { token });
+
+export const getBookingNavigation = (bookingId, token) =>
+  request(`/bookings/${bookingId}/navigate`, { token });
+
 export default {
   createBooking,
   getBookingHistory,
   cancelBooking,
+  getBookingById,
+  getBookingNavigation,
 };

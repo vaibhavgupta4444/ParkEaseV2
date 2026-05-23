@@ -15,11 +15,25 @@ export default function PaymentScreen({ lot, slot, date, duration, driver, onCon
   const [cardNo, setCardNo] = useState("");
   const [expiry, setExpiry] = useState("");
   const [cvv, setCvv] = useState("");
+  const [errors, setErrors] = useState({});
   const [processing, setProcessing] = useState(false);
 
   const total = calculateBookingTotal(lot.pricePerHour, duration);
 
   const handlePay = () => {
+    const nextErrors = {};
+    if (method === "upi" && !/^[\w.-]+@[\w.-]+$/.test(upiId.trim())) {
+      nextErrors.upiId = "Enter a valid UPI ID";
+    }
+    if (method === "card") {
+      if (!/^\d{13,19}$/.test(cardNo.replace(/\s+/g, ""))) nextErrors.cardNo = "Enter a valid card number";
+      if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(expiry.trim())) nextErrors.expiry = "Use MM/YY format";
+      if (!/^\d{3,4}$/.test(cvv.trim())) nextErrors.cvv = "Enter a valid CVV";
+    }
+
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
     setProcessing(true);
     setTimeout(() => {
       setProcessing(false);
@@ -106,8 +120,12 @@ export default function PaymentScreen({ lot, slot, date, duration, driver, onCon
               <label style={{ fontSize: 13, color: "#94a3b8", display: "block", marginBottom: 6 }}>UPI ID</label>
               <input
                 value={upiId}
-                onChange={(e) => setUpiId(e.target.value)}
+                onChange={(e) => {
+                  setUpiId(e.target.value);
+                  if (errors.upiId) setErrors((prev) => ({ ...prev, upiId: "" }));
+                }}
                 placeholder="yourname@upi"
+                required
                 style={{
                   width: "100%",
                   padding: "10px 14px",
@@ -121,6 +139,7 @@ export default function PaymentScreen({ lot, slot, date, duration, driver, onCon
                   boxSizing: "border-box",
                 }}
               />
+              {errors.upiId && <div style={{ fontSize: 11, color: "#ef4444", marginTop: 4 }}>{errors.upiId}</div>}
               <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
                 {["GPay", "PhonePe", "Paytm", "BHIM"].map((app) => (
                   <button
@@ -154,8 +173,13 @@ export default function PaymentScreen({ lot, slot, date, duration, driver, onCon
                   <label style={{ fontSize: 13, color: "#94a3b8", display: "block", marginBottom: 6 }}>{label}</label>
                   <input
                     value={value}
-                    onChange={(e) => setter(e.target.value)}
+                    onChange={(e) => {
+                      setter(e.target.value);
+                      const key = label.startsWith("Card") ? "cardNo" : "expiry";
+                      if (errors[key]) setErrors((prev) => ({ ...prev, [key]: "" }));
+                    }}
                     placeholder={placeholder}
+                    required
                     style={{
                       width: "100%",
                       padding: "10px 14px",
@@ -169,16 +193,22 @@ export default function PaymentScreen({ lot, slot, date, duration, driver, onCon
                       boxSizing: "border-box",
                     }}
                   />
+                  {label.startsWith("Card") && errors.cardNo && <div style={{ fontSize: 11, color: "#ef4444", marginTop: 4 }}>{errors.cardNo}</div>}
+                  {label.startsWith("Expiry") && errors.expiry && <div style={{ fontSize: 11, color: "#ef4444", marginTop: 4 }}>{errors.expiry}</div>}
                 </div>
               ))}
               <div>
                 <label style={{ fontSize: 13, color: "#94a3b8", display: "block", marginBottom: 6 }}>CVV</label>
                 <input
                   value={cvv}
-                  onChange={(e) => setCvv(e.target.value)}
+                  onChange={(e) => {
+                    setCvv(e.target.value);
+                    if (errors.cvv) setErrors((prev) => ({ ...prev, cvv: "" }));
+                  }}
                   placeholder="•••"
                   type="password"
                   maxLength={3}
+                  required
                   style={{
                     width: 80,
                     padding: "10px 14px",
@@ -191,6 +221,7 @@ export default function PaymentScreen({ lot, slot, date, duration, driver, onCon
                     outline: "none",
                   }}
                 />
+                {errors.cvv && <div style={{ fontSize: 11, color: "#ef4444", marginTop: 4 }}>{errors.cvv}</div>}
               </div>
             </div>
           )}

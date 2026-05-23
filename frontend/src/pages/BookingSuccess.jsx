@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { Check, QrCode } from "lucide-react";
+import NavigationMap, { GoogleMapsButton } from "../components/map/NavigationMap";
 import { formatCurrency, formatDateTime } from "../utils/formatters";
 
 export default function BookingSuccess() {
@@ -7,6 +8,17 @@ export default function BookingSuccess() {
   const navigate = useNavigate();
   const { paymentData, facility, selectedSlot, startTime, endTime, finalPrice } = location.state || {};
   const qrCodeData = paymentData?.bookingRef ? `PARKEASE-${paymentData.bookingRef}` : "";
+  const coordinates = facility?.location?.coordinates;
+  const destination = coordinates?.length
+    ? {
+        lat: coordinates[1],
+        lng: coordinates[0],
+        name: facility.name,
+        address: [facility.location?.address?.street, facility.location?.address?.city, facility.location?.address?.state]
+          .filter(Boolean)
+          .join(", "),
+      }
+    : null;
 
   if (!paymentData) {
     return (
@@ -18,8 +30,8 @@ export default function BookingSuccess() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4 animate-fadeIn">
-      <div className="w-full max-w-xl overflow-hidden rounded-xl border border-border bg-surface shadow-xl">
+    <div className="min-h-screen bg-background p-4 animate-fadeIn">
+      <div className="mx-auto w-full max-w-5xl overflow-hidden rounded-xl border border-border bg-surface shadow-xl">
          
          <div className="relative bg-success p-8 text-center text-white">
             <div className="relative z-10 mb-4 flex justify-center font-bold">
@@ -69,13 +81,28 @@ export default function BookingSuccess() {
                </div>
             </div>
 
-            <div className="flex gap-4">
-               <button onClick={() => navigate("/bookings")} className="btn-secondary flex-1">
-                  View My Bookings
-               </button>
-               <button onClick={() => navigate("/map")} className="btn-primary flex-1">
-                  Go to Home
-               </button>
+            {destination && (
+              <div className="mt-8 border-t border-border pt-8">
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <h2 className="text-xl font-black text-secondary">Navigate to Your Parking Slot</h2>
+                  <GoogleMapsButton destination={destination} />
+                </div>
+                <NavigationMap
+                  destination={destination}
+                  bookingRef={paymentData.bookingRef}
+                  slotId={selectedSlot?.slotId}
+                  className="h-[calc(100vh-280px)] min-h-[400px]"
+                />
+              </div>
+            )}
+
+            <div className="mt-8 flex gap-4">
+              <button onClick={() => navigate("/bookings")} className="btn-secondary flex-1">
+                View My Bookings
+              </button>
+              <button onClick={() => navigate("/map")} className="btn-primary flex-1">
+                Go to Home
+              </button>
             </div>
          </div>
       </div>
