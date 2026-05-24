@@ -1,6 +1,7 @@
-import { LayoutDashboard, Car, Zap, BookOpen, BarChart3, Tag, User, LogOut, X } from "lucide-react";
+import { LayoutDashboard, Car, Zap, BookOpen, BarChart3, Tag, User, LogOut, X, Lock } from "lucide-react";
+import { toast } from "react-hot-toast";
 
-export default function VendorSidebar({ activeTab, setActiveTab, onLogout, unreadCount, onClose, className = "hidden lg:flex border-r border-slate-200 h-[calc(100vh-88px)] sticky top-20" }) {
+export default function VendorSidebar({ activeTab, setActiveTab, onLogout, unreadCount, onClose, isVerified = true, className = "hidden lg:flex border-r border-slate-200 h-[calc(100vh-120px)] sticky top-28 self-start" }) {
   const tabs = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "parking", label: "Parking Lots", icon: Car },
@@ -24,19 +25,29 @@ export default function VendorSidebar({ activeTab, setActiveTab, onLogout, unrea
       <nav className="flex-1 overflow-y-auto p-4 space-y-1">
         {tabs.map((tab) => {
           const Icon = tab.icon;
+          const isLocked = !isVerified && tab.id !== "profile";
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                if (isLocked) {
+                  toast.error(`Verification required to access ${tab.label}`);
+                  return;
+                }
+                setActiveTab(tab.id);
+              }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${
-                activeTab === tab.id
-                  ? "bg-blue-600 text-white shadow-lg shadow-blue-200"
-                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                isLocked
+                  ? "opacity-50 cursor-not-allowed text-slate-400 hover:bg-transparent"
+                  : activeTab === tab.id
+                    ? "bg-blue-600 text-white shadow-lg shadow-blue-200"
+                    : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
               }`}
             >
               <Icon size={20} />
-              {tab.label}
-              {tab.id === "bookings" && unreadCount > 0 && (
+              <span className="flex-1 text-left">{tab.label}</span>
+              {isLocked && <Lock size={14} className="text-slate-400 ml-auto" />}
+              {!isLocked && tab.id === "bookings" && unreadCount > 0 && (
                 <span className="ml-auto bg-rose-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">
                   {unreadCount}
                 </span>

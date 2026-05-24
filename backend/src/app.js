@@ -8,6 +8,9 @@ import facilityRouter from "./routes/facilityRoutes.js";
 import paymentRouter from "./routes/paymentRoutes.js";
 import adminRouter from "./routes/adminRoutes.js";
 import vendorRouter from "./routes/vendorRoutes.js";
+import uploadRouter from "./routes/uploadRoutes.js";
+import feedbackRouter from "./routes/feedbackRoutes.js";
+import refundRouter from "./routes/refundRoutes.js";
 import { env } from "./config/env.js";
 
 const app = express();
@@ -19,6 +22,8 @@ const allowedOrigins = new Set([
   "http://127.0.0.1:5173",
   "http://localhost:5174",
   "http://127.0.0.1:5174",
+  "http://localhost:5175",
+  "http://127.0.0.1:5175",
 ]);
 
 app.use(
@@ -49,5 +54,8 @@ app.use("/api/bookings", bookingRouter);
 app.use("/api/payments", paymentRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/vendor", vendorRouter);
+app.use("/api/upload", uploadRouter);
+app.use("/api/feedback", feedbackRouter);
+app.use("/api/refunds", refundRouter);
 
 export default app;

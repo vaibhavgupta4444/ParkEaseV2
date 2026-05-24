@@ -40,11 +40,13 @@ export default function BookingHistory({ token }) {
   return (
     <div className="page-shell text-textPrimary">
       <div className="mb-6">
-        <div className="flex items-center gap-3">
+        <div className="flex items-start gap-4">
           <BackButton label="Back to Map" to="/map" />
-          <h2 className="text-2xl font-bold text-secondary">My Bookings</h2>
+          <div className="pt-1">
+            <h2 className="text-2xl font-bold leading-none text-secondary">My Bookings</h2>
+            <p className="mt-2 text-sm text-textSecondary">Click any booking to view full details or manage payment</p>
+          </div>
         </div>
-        <p className="mt-1 text-sm text-textSecondary">Click any booking to view full details or manage payment</p>
       </div>
 
       {error && <div className="mt-4"><ErrorState message={error} onRetry={loadHistory} /></div>}
@@ -134,12 +136,12 @@ export default function BookingHistory({ token }) {
                       type="button"
                       onClick={(event) => {
                         event.stopPropagation();
-                        navigate(`/navigate/${booking._id}`);
+                        navigate(`/bookings/${booking._id}`);
                       }}
                       className="mb-3 flex w-full items-center justify-center gap-2 rounded-lg border border-primary px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-blue-50"
                     >
-                      <Navigation size={14} />
-                      Get Directions
+                      <ChevronRight size={14} />
+                      View Details & Invoice
                     </button>
                   ) : null}
                   <div className="flex items-center justify-between">

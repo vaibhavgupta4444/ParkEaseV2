@@ -14,7 +14,7 @@ export default function LoginForm({ onSuccess, onToggle }) {
     setError("");
     try {
       const res = await apiLogin(email, password);
-      onSuccess(res.token);
+      onSuccess(res.token, res.refreshToken);
     } catch (err) {
       setError(err.message);
     } finally {

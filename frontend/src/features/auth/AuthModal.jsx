@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import { X } from "lucide-react";
 import AuthForm from "./AuthForm";
-import { loginUser, registerUser } from "../../services/authService";
+import { loginUser, registerUser, apiSendOTP, apiVerifyOTP } from "../../services/authService";
 import { getApiErrorMessage } from "../../utils/formatters";
 import { validateField } from "../../utils/validation";
 
@@ -18,6 +18,17 @@ export default function AuthModal({ mode: initialMode, onClose, onSuccess, onSwi
     password: "",
     role: "user",
   });
+  const [step, setStep] = useState(1);
+  const [otp, setOtp] = useState("");
+  const [timer, setTimer] = useState(0);
+  
+  useEffect(() => {
+    let interval;
+    if (timer > 0) {
+      interval = setInterval(() => setTimer((t) => t - 1), 1000);
+    }
+    return () => clearInterval(interval);
+  }, [timer]);
 
   const onChange = (event) => {
     const { name, value } = event.target;
@@ -53,19 +64,46 @@ export default function AuthModal({ mode: initialMode, onClose, onSuccess, onSwi
     setLoading(true);
 
     try {
-      const payload = {
-        email: formValues.email,
-        password: formValues.password,
-      };
+      const payload = { email: formValues.email, password: formValues.password };
 
-      const data =
-        mode === "register"
-          ? await registerUser({ ...payload, name: formValues.name, role: formValues.role })
-          : await loginUser(payload);
-          
-      onSuccess(data.token, data.user);
+      if (mode === "register") {
+        if (step === 1) {
+          await apiSendOTP(formValues.email);
+          setStep(2);
+          setTimer(30);
+          setLoading(false);
+          return;
+        } else {
+          if (otp.length !== 6) {
+            toast.error("Please enter a valid 6-digit OTP");
+            setLoading(false);
+            return;
+          }
+          await apiVerifyOTP(formValues.email, otp);
+          const data = await registerUser({ ...payload, name: formValues.name, role: formValues.role });
+          onSuccess(data.token, data.user, data.refreshToken);
+        }
+      } else {
+        const data = await loginUser(payload);
+        onSuccess(data.token, data.user, data.refreshToken);
+      }
     } catch (submitError) {
       const message = getApiErrorMessage(submitError);
+      setError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOTP = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      await apiSendOTP(formValues.email);
+      setTimer(30);
+    } catch (err) {
+      const message = getApiErrorMessage(err);
       setError(message);
       toast.error(message);
     } finally {
@@ -77,6 +115,8 @@ export default function AuthModal({ mode: initialMode, onClose, onSuccess, onSwi
     setError("");
     setErrors({});
     setSubmitted(false);
+    setStep(1);
+    setOtp("");
     setMode((prev) => (prev === "login" ? "register" : "login"));
     onSwitchMode();
   };
@@ -101,6 +141,12 @@ export default function AuthModal({ mode: initialMode, onClose, onSuccess, onSwi
           error={error}
           errors={errors}
           onSwitchMode={switchMode}
+          step={step}
+          setStep={setStep}
+          otp={otp}
+          setOtp={setOtp}
+          timer={timer}
+          onResend={handleResendOTP}
         />
       </div>
     </div>

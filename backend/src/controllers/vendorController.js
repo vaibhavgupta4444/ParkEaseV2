@@ -423,9 +423,18 @@ export const getVendorProfile = async (req, res) => {
 
 export const upsertVendorProfile = async (req, res) => {
   try {
+    const currentProfile = await VendorProfile.findOne({ userId: req.userId });
+    let verificationStatus = currentProfile?.verificationStatus || "unverified";
+
+    if (req.body.documents && req.body.documents.length > 0) {
+      if (verificationStatus === "unverified" || verificationStatus === "rejected") {
+        verificationStatus = "pending";
+      }
+    }
+
     const profile = await VendorProfile.findOneAndUpdate(
       { userId: req.userId },
-      { ...req.body, userId: req.userId },
+      { ...req.body, userId: req.userId, verificationStatus },
       { new: true, upsert: true, runValidators: true }
     );
     return res.status(200).json({ message: "Vendor profile saved", data: profile });

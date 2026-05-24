@@ -1,11 +1,21 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import nodemailer from "nodemailer";
 import User from "../models/User.js";
 
-const signToken = (userId) =>
+const otpStore = new Map(); // Store OTPs in memory for now. In production, use Redis or DB.
+
+const signAccessToken = (userId) =>
+  jwt.sign({ userId }, process.env.JWT_SECRET, {
+    expiresIn: "15m",
+  });
+
+const signRefreshToken = (userId) =>
   jwt.sign({ userId }, process.env.JWT_SECRET, {
     expiresIn: "7d",
   });
+
+const signToken = signAccessToken;
 
 const toClientUser = (user) => ({
   id: user._id,
@@ -53,11 +63,13 @@ export const register = async (req, res) => {
       role: ["vendor", "operator", "admin"].includes(role) ? role : "user",
     });
 
-    const token = signToken(user._id);
+    const token = signAccessToken(user._id);
+    const refreshToken = signRefreshToken(user._id);
 
     return res.status(201).json({
       message: "Registration successful",
       token,
+      refreshToken,
       user: toClientUser(user),
     });
   } catch (error) {
@@ -210,11 +222,13 @@ export const login = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    const token = signToken(user._id);
+    const token = signAccessToken(user._id);
+    const refreshToken = signRefreshToken(user._id);
 
     return res.status(200).json({
       message: "Login successful",
       token,
+      refreshToken,
       user: toClientUser(user),
     });
   } catch (error) {
@@ -244,13 +258,37 @@ export const verifyEmail = async (req, res) => {
 
 export const sendOTP = async (req, res) => {
   try {
-    const { phone } = req.body;
-    if (!phone) return res.status(400).json({ message: "Phone number is required" });
+    const { email } = req.body; // Changed from phone to email
+    if (!email) return res.status(400).json({ message: "Email is required" });
     
-    // Mock OTP Generation
-    const otp = "123456"; 
-    console.log(`[MOCK OTP SERVICE] Sending OTP ${otp} to phone ${phone}`);
-    return res.status(200).json({ message: "OTP sent successfully (mock)" });
+    // Generate 6 digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    otpStore.set(email.toLowerCase(), { otp, expiresAt, attempts: 0 });
+
+    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST || "smtp.gmail.com",
+        port: process.env.SMTP_PORT || 587,
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      });
+
+      await transporter.sendMail({
+        from: `"ParkEase" <${process.env.SMTP_USER}>`,
+        to: email,
+        subject: "Your ParkEase Verification Code",
+        text: `Your OTP for ParkEase registration is ${otp}. It expires in 10 minutes.`,
+      });
+      console.log(`[SMTP SERVICE] OTP sent to ${email}`);
+    } else {
+      console.log(`[MOCK EMAIL SERVICE] Sending OTP ${otp} to email ${email} (Configure SMTP to send real emails)`);
+    }
+
+    return res.status(200).json({ message: "OTP sent successfully" });
   } catch (error) {
     return res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -258,18 +296,36 @@ export const sendOTP = async (req, res) => {
 
 export const verifyOTP = async (req, res) => {
   try {
-    const { phone, otp } = req.body;
-    if (!phone || !otp) return res.status(400).json({ message: "Phone and OTP are required" });
+    const { email, otp } = req.body;
+    if (!email || !otp) return res.status(400).json({ message: "Email and OTP are required" });
     
-    // Mock OTP Verification
-    if (otp === "123456") {
-      const user = await User.findOne({ phone });
+    const record = otpStore.get(email.toLowerCase());
+    
+    if (!record) {
+      return res.status(400).json({ message: "No OTP found for this email. Please request a new one." });
+    }
+
+    if (Date.now() > record.expiresAt) {
+      otpStore.delete(email.toLowerCase());
+      return res.status(400).json({ message: "OTP has expired. Please request a new one." });
+    }
+
+    if (record.attempts >= 5) {
+      otpStore.delete(email.toLowerCase());
+      return res.status(400).json({ message: "Too many failed attempts. Please request a new OTP." });
+    }
+
+    if (record.otp === otp) {
+      otpStore.delete(email.toLowerCase());
+      
+      const user = await User.findOne({ email: email.toLowerCase() });
       if (user) {
-        user.phoneVerified = true;
+        user.emailVerified = true;
         await user.save();
       }
       return res.status(200).json({ message: "OTP verified successfully" });
     } else {
+      record.attempts += 1;
       return res.status(400).json({ message: "Invalid OTP" });
     }
   } catch (error) {
@@ -335,14 +391,42 @@ export const googleAuth = async (req, res) => {
       });
     }
 
-    const token = signToken(user._id);
+    const token = signAccessToken(user._id);
+    const refreshToken = signRefreshToken(user._id);
+
     return res.status(200).json({
       message: "Google login successful",
       token,
+      refreshToken,
       user: toClientUser(user)
     });
 
   } catch (error) {
     return res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+export const refresh = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    if (!refreshToken) {
+      return res.status(400).json({ message: "Refresh token is required" });
+    }
+
+    const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
+    }
+
+    const newAccessToken = signAccessToken(user._id);
+    const newRefreshToken = signRefreshToken(user._id);
+
+    return res.status(200).json({
+      token: newAccessToken,
+      refreshToken: newRefreshToken,
+    });
+  } catch (error) {
+    return res.status(401).json({ message: "Invalid or expired refresh token", error: error.message });
   }
 };

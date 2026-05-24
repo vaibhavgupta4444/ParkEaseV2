@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { MapContainer, TileLayer, Popup, CircleMarker, ZoomControl, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Popup, Marker, ZoomControl, useMapEvents } from "react-leaflet";
+import L from "leaflet";
 import { ChevronUp, Crosshair, List, Menu, Search } from "lucide-react";
 import BrandLogo from "../components/navigation/BrandLogo";
 import Sidebar from "../components/navigation/Sidebar";
@@ -121,7 +122,7 @@ export default function MapHomePage({ user, onLogout }) {
              >
                <Menu size={22} />
              </button>
-             <button type="button" onClick={() => navigate("/map")} aria-label="Go to map home">
+             <button type="button" onClick={() => navigate("/home")} aria-label="Go to home">
                <BrandLogo />
              </button>
           </div>
@@ -143,6 +144,7 @@ export default function MapHomePage({ user, onLogout }) {
           </div>
 
           <div className="hidden items-center gap-4 md:flex">
+             <button onClick={() => navigate("/home")} className="text-sm font-semibold text-textSecondary transition hover:text-primary">Home</button>
              <button onClick={() => navigate("/bookings")} className="text-sm font-semibold text-textSecondary transition hover:text-primary">My Bookings</button>
              <button onClick={() => navigate("/profile")} className="text-sm font-semibold text-textSecondary transition hover:text-primary">Profile</button>
              <button onClick={onLogout} className="text-sm font-semibold text-error transition hover:text-red-700">Logout</button>
@@ -255,30 +257,40 @@ export default function MapHomePage({ user, onLogout }) {
             <MapUpdater center={mapCenter} />
             
             {userLocation && (
-              <CircleMarker
-                center={userLocation}
-                radius={16}
-                pathOptions={{ color: "#FFFFFF", fillColor: "#1D4ED8", fillOpacity: 1, weight: 3 }}
+              <Marker
+                position={userLocation}
+                icon={L.divIcon({
+                  html: `<div style="color: #1D4ED8; display: flex; justify-content: center; align-items: center;">
+                           <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="currentColor" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-map-pin"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3" fill="white"/></svg>
+                         </div>`,
+                  className: "custom-pin",
+                  iconSize: [32, 32],
+                  iconAnchor: [16, 32],
+                  popupAnchor: [0, -32]
+                })}
               >
                 <Popup>You are here</Popup>
-              </CircleMarker>
+              </Marker>
             )}
 
             {facilities.map(facility => {
               const coords = facility.location?.coordinates;
               if (!coords) return null;
               const isParking = facility.facilityType === "parking";
+              const pinColor = isParking ? "#1D4ED8" : "#16A34A";
               return (
-                <CircleMarker
+                <Marker
                   key={facility._id}
-                  center={[coords[1], coords[0]]}
-                  radius={16}
-                  pathOptions={{ 
-                    color: "#FFFFFF", 
-                    fillColor: isParking ? "#1D4ED8" : "#16A34A", 
-                    fillOpacity: 1, 
-                    weight: 3 
-                  }}
+                  position={[coords[1], coords[0]]}
+                  icon={L.divIcon({
+                    html: `<div style="color: ${pinColor}; display: flex; justify-content: center; align-items: center;">
+                             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="currentColor" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-map-pin"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3" fill="white"/></svg>
+                           </div>`,
+                    className: "custom-pin",
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 32],
+                    popupAnchor: [0, -32]
+                  })}
                   eventHandlers={{
                     click: () => {
                       setSelectedFacility(facility);
@@ -290,7 +302,7 @@ export default function MapHomePage({ user, onLogout }) {
                     <div className="text-xs text-slate-500">{isParking ? "Parking" : "EV Charging"}</div>
                     <div className="mt-1 text-sm">{facility.capacity?.available} spots available</div>
                   </Popup>
-                </CircleMarker>
+                </Marker>
               )
             })}
           </MapContainer>

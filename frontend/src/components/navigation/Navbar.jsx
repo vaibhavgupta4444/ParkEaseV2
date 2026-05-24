@@ -12,15 +12,18 @@ export default function Navbar({ onLogin, onSignup, user, onLogout }) {
     <nav className={`fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-lg shadow-sm`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-3">
-          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => navigate("/map") }>
+          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => navigate("/home") }>
             <BrandLogo size="large" />
           </div>
 
-          <div className="hidden md:flex items-center space-x-7">
-            <button onClick={() => navigate('/map')} className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors">Home Map</button>
-            <button onClick={() => navigate('/bookings')} className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors">My Bookings</button>
-            <button onClick={() => navigate('/profile')} className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors">Profile</button>
-          </div>
+          {user && (
+            <div className="hidden md:flex items-center space-x-7">
+              <button onClick={() => navigate('/home')} className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors">Home</button>
+              <button onClick={() => navigate('/map')} className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors">Map</button>
+              <button onClick={() => navigate('/bookings')} className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors">My Bookings</button>
+              <button onClick={() => navigate('/profile')} className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors">Profile</button>
+            </div>
+          )}
 
           <div className="flex items-center space-x-3">
             {user ? (
@@ -49,9 +52,14 @@ export default function Navbar({ onLogin, onSignup, user, onLogout }) {
       {mobileOpen && (
         <div className="md:hidden border-t border-slate-100 bg-white">
           <div className="px-4 pt-2 pb-4 space-y-2">
-            <button onClick={() => { navigate('/map'); setMobileOpen(false); }} className="block w-full text-left px-4 py-3 text-sm font-semibold text-slate-600">Home Map</button>
-            <button onClick={() => { navigate('/bookings'); setMobileOpen(false); }} className="block w-full text-left px-4 py-3 text-sm font-semibold text-slate-600">My Bookings</button>
-            <button onClick={() => { navigate('/profile'); setMobileOpen(false); }} className="block w-full text-left px-4 py-3 text-sm font-semibold text-slate-600">Profile</button>
+            {user && (
+              <>
+                <button onClick={() => { navigate('/home'); setMobileOpen(false); }} className="block w-full text-left px-4 py-3 text-sm font-semibold text-slate-600">Home</button>
+                <button onClick={() => { navigate('/map'); setMobileOpen(false); }} className="block w-full text-left px-4 py-3 text-sm font-semibold text-slate-600">Map</button>
+                <button onClick={() => { navigate('/bookings'); setMobileOpen(false); }} className="block w-full text-left px-4 py-3 text-sm font-semibold text-slate-600">My Bookings</button>
+                <button onClick={() => { navigate('/profile'); setMobileOpen(false); }} className="block w-full text-left px-4 py-3 text-sm font-semibold text-slate-600">Profile</button>
+              </>
+            )}
             {!user && <button onClick={() => { onLogin(); setMobileOpen(false); }} className="w-full text-center py-3 font-bold text-blue-600">Sign In</button>}
           </div>
         </div>

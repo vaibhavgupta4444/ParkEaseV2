@@ -1,5 +1,6 @@
 import MapPicker from "./MapPicker";
 import { Checkbox, Field, FormHeader } from "./FormFields";
+import ImageUploadField from "./ImageUploadField";
 
 export default function ParkingForm({ form, setForm, editing, onCancel, onSubmit, loading }) {
   return (
@@ -7,14 +8,14 @@ export default function ParkingForm({ form, setForm, editing, onCancel, onSubmit
       <FormHeader title={`${editing ? "Update" : "Add"} Parking Lot`} onCancel={editing ? onCancel : null} />
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <Field name="name" value={form.name} onChange={setForm} placeholder="Parking lot name" required />
-        <Field name="imageUrl" value={form.imageUrl} onChange={setForm} placeholder="Image URL" />
+        <ImageUploadField value={form.imageUrl} onChange={(url) => setForm((p) => ({ ...p, imageUrl: url }))} />
         <Field name="street" value={form.street} onChange={setForm} placeholder="Street address" required wide />
         <Field name="city" value={form.city} onChange={setForm} placeholder="City" required />
         <Field name="state" value={form.state} onChange={setForm} placeholder="State" required />
         <Field name="zipCode" value={form.zipCode} onChange={setForm} placeholder="Zip code" />
-        <Field name="lat" type="number" value={form.lat} onChange={setForm} placeholder="Latitude" required />
-        <Field name="lng" type="number" value={form.lng} onChange={setForm} placeholder="Longitude" required />
-        <MapPicker lat={form.lat} lng={form.lng} onPick={(lat, lng) => setForm((p) => ({ ...p, lat: lat.toFixed(6), lng: lng.toFixed(6) }))} />
+        <MapPicker lat={form.lat} lng={form.lng} onLocationUpdate={(lat, lng, address) => {
+          setForm(p => ({ ...p, lat, lng, ...(address || {}) }));
+        }} />
         <Field name="hourlyRate" type="number" value={form.hourlyRate} onChange={setForm} placeholder="Hourly rate" required />
         <Field name="currency" value={form.currency} onChange={setForm} placeholder="Currency" />
         <Field name="total" type="number" value={form.total} onChange={setForm} placeholder="Total slots" required />

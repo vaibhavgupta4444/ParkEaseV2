@@ -1,6 +1,44 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 
-const request = async (path, options = {}) => {
+let isRefreshing = false;
+let refreshSubscribers = [];
+
+const subscribeTokenRefresh = (cb) => {
+  refreshSubscribers.push(cb);
+};
+
+const onRefreshed = (token) => {
+  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers = [];
+};
+
+const handleTokenRefresh = async () => {
+  const refreshToken = localStorage.getItem("vendor-refresh-token");
+  if (!refreshToken) {
+    throw new Error("No refresh token available");
+  }
+
+  const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refreshToken }),
+  });
+
+  if (!res.ok) {
+    localStorage.removeItem("vendor-token");
+    localStorage.removeItem("vendor-refresh-token");
+    window.dispatchEvent(new Event("storage"));
+    throw new Error("Session expired. Please log in again.");
+  }
+
+  const data = await res.json();
+  localStorage.setItem("vendor-token", data.token);
+  localStorage.setItem("vendor-refresh-token", data.refreshToken);
+  window.dispatchEvent(new Event("storage"));
+  return data.token;
+};
+
+export const request = async (path, options = {}) => {
   const { method = "GET", payload, token, raw = false } = options;
   const headers = {};
 
@@ -8,8 +46,9 @@ const request = async (path, options = {}) => {
     headers["Content-Type"] = "application/json";
   }
 
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
+  const activeToken = localStorage.getItem("vendor-token") || token;
+  if (activeToken) {
+    headers.Authorization = `Bearer ${activeToken}`;
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -17,6 +56,50 @@ const request = async (path, options = {}) => {
     headers,
     ...(payload && { body: raw ? payload : JSON.stringify(payload) }),
   });
+
+  if (response.status === 401 && !path.includes("/auth/login") && !path.includes("/auth/refresh")) {
+    if (!isRefreshing) {
+      isRefreshing = true;
+      try {
+        const newAccessToken = await handleTokenRefresh();
+        isRefreshing = false;
+        onRefreshed(newAccessToken);
+      } catch (err) {
+        isRefreshing = false;
+        refreshSubscribers = [];
+        throw err;
+      }
+    }
+
+    return new Promise((resolve, reject) => {
+      subscribeTokenRefresh((newToken) => {
+        headers.Authorization = `Bearer ${newToken}`;
+        fetch(`${API_BASE_URL}${path}`, {
+          method,
+          headers,
+          ...(payload && { body: raw ? payload : JSON.stringify(payload) }),
+        })
+          .then(async (res) => {
+            try {
+              if (path.includes("/export")) {
+                if (!res.ok) throw new Error("Export failed");
+                resolve(await res.text());
+                return;
+              }
+              const data = await res.json();
+              if (!res.ok) {
+                reject(new Error(data.message || "Request failed"));
+              } else {
+                resolve(data);
+              }
+            } catch (err) {
+              reject(err);
+            }
+          })
+          .catch((err) => reject(err));
+      });
+    });
+  }
 
   if (path.includes("/export")) {
     if (!response.ok) throw new Error("Export failed");

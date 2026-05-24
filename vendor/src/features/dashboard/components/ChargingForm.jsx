@@ -1,6 +1,7 @@
 import MapPicker from "./MapPicker";
 import { Checkbox, Checklist, Field, FormHeader } from "./FormFields";
 import { CHARGER_TYPES, EV_AMENITIES } from "../constants";
+import ImageUploadField from "./ImageUploadField";
 
 export default function ChargingForm({ form, setForm, editing, onCancel, onSubmit, loading }) {
   const toggleList = (key, value) => {
@@ -15,14 +16,14 @@ export default function ChargingForm({ form, setForm, editing, onCancel, onSubmi
       <FormHeader title={`${editing ? "Update" : "Add"} EV Station`} onCancel={editing ? onCancel : null} />
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <Field name="name" value={form.name} onChange={setForm} placeholder="Station name" required />
-        <Field name="imageUrl" value={form.imageUrl} onChange={setForm} placeholder="Image URL" />
+        <ImageUploadField value={form.imageUrl} onChange={(url) => setForm((p) => ({ ...p, imageUrl: url }))} />
         <Field name="street" value={form.street} onChange={setForm} placeholder="Street address" required wide />
         <Field name="city" value={form.city} onChange={setForm} placeholder="City" required />
         <Field name="state" value={form.state} onChange={setForm} placeholder="State" required />
         <Field name="zipCode" value={form.zipCode} onChange={setForm} placeholder="Zip code" />
-        <Field name="lat" type="number" value={form.lat} onChange={setForm} placeholder="Latitude" required />
-        <Field name="lng" type="number" value={form.lng} onChange={setForm} placeholder="Longitude" required />
-        <MapPicker lat={form.lat} lng={form.lng} onPick={(lat, lng) => setForm((p) => ({ ...p, lat: lat.toFixed(6), lng: lng.toFixed(6) }))} />
+        <MapPicker lat={form.lat} lng={form.lng} onLocationUpdate={(lat, lng, address) => {
+          setForm(p => ({ ...p, lat, lng, ...(address || {}) }));
+        }} />
         <Checklist title="Charger types" items={CHARGER_TYPES} values={form.chargerTypes} onToggle={(value) => toggleList("chargerTypes", value)} />
         <Field name="speedKw" type="number" value={form.speedKw} onChange={setForm} placeholder="Charging speed kW" />
         <Field name="total" type="number" value={form.total} onChange={setForm} placeholder="Charging points" required />

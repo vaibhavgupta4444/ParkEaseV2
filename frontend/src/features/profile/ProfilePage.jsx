@@ -217,11 +217,13 @@ export default function ProfilePage({ user, token, onUpdateUser }) {
   return (
     <div className="page-shell text-textPrimary">
        <div className="mb-6">
-          <div className="flex items-center gap-3">
+          <div className="flex items-start gap-4">
              <BackButton label="Back to Map" to="/map" />
-             <h1 className="text-2xl font-bold text-secondary">Profile</h1>
+             <div className="pt-1">
+               <h1 className="text-2xl font-bold leading-none text-secondary">Profile</h1>
+               <p className="mt-2 text-sm text-textSecondary">Manage your account, vehicles, wallet, and preferences</p>
+             </div>
           </div>
-          <p className="mt-1 text-sm text-textSecondary">Manage your account, vehicles, wallet, and preferences</p>
        </div>
 
        <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
@@ -231,7 +233,7 @@ export default function ProfilePage({ user, token, onUpdateUser }) {
              {[
                 { id: "profile", icon: User, label: "My Profile" },
                 { id: "vehicles", icon: Car, label: "Saved Vehicles" },
-                { id: "wallet", icon: Wallet, label: "ParkEase Wallet" },
+                { id: "wallet", icon: Receipt, label: "Transaction History" },
                 { id: "settings", icon: Cog, label: "Security & Settings" }
              ].map(item => {
                 const Icon = item.icon;
@@ -439,72 +441,56 @@ export default function ProfilePage({ user, token, onUpdateUser }) {
                 </div>
              )}
 
-             {activeTab === "wallet" && (
-                <div className="space-y-6">
-                   <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-8 text-white shadow-xl relative overflow-hidden text-center">
-                     <div className="absolute top-0 right-0 p-10 opacity-10">
-                        <Wallet className="h-24 w-24" />
-                     </div>
-                     <p className="text-slate-400 font-bold uppercase tracking-widest text-sm mb-2 relative z-10">Available Balance</p>
-                     <h2 className="text-5xl font-black relative z-10 mb-6">{formatCurrency(user?.walletBalance || 0)}</h2>
-                     <div className="flex gap-4 relative z-10 justify-center">
-                        <button className="bg-primary text-white rounded-lg px-5 py-2.5 font-semibold text-sm hover:bg-primaryHover transition-all">
-                           Add Funds
-                        </button>
-                        <button className="bg-white text-primary border border-primary rounded-lg px-5 py-2.5 font-semibold text-sm hover:bg-blue-50 transition-all">
-                           Withdraw
-                        </button>
-                     </div>
-                   </div>
 
-                   <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 md:p-8">
-                      <h3 className="text-lg font-bold text-slate-900 mb-4 pb-2 border-b border-slate-100">Recent Transactions</h3>
-                      {transactionsLoading ? (
-                         <div className="flex justify-center py-10">
-                            <LoadingSpinner />
-                         </div>
-                      ) : transactionsError ? (
-                         <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-600">
-                            {transactionsError}
-                         </div>
-                      ) : transactions.length === 0 ? (
-                         <div className="text-center py-10 text-slate-500">
-                            <Receipt className="mx-auto mb-2 h-8 w-8 text-slate-300" />
-                            <p>No recent activity</p>
-                         </div>
-                      ) : (
-                         <div className="divide-y divide-slate-100">
-                            {transactions.map((transaction) => (
-                               <div key={transaction._id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
-                                  <div className="flex items-center gap-3">
-                                     <div className={`flex h-10 w-10 items-center justify-center rounded-full ${
-                                        transaction.type === "credit" ? "bg-emerald-50 text-emerald-600" : "bg-blue-50 text-primary"
-                                     }`}>
-                                        <Receipt className="h-5 w-5" />
-                                     </div>
-                                     <div>
-                                        <p className="font-bold text-slate-900">
-                                           {transaction.description || "Wallet transaction"}
-                                        </p>
-                                        <p className="text-xs text-slate-500">
-                                           {formatDate(transaction.createdAt)}
-                                           {transaction.booking?.bookingRef ? ` - Ref: ${transaction.booking.bookingRef}` : ""}
-                                        </p>
-                                     </div>
+
+             {activeTab === "wallet" && (
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 md:p-8">
+                   <h2 className="text-2xl font-black text-slate-900 mb-6 border-b border-slate-100 pb-4">Transaction History</h2>
+                   {transactionsLoading ? (
+                      <div className="flex justify-center py-10">
+                         <LoadingSpinner />
+                      </div>
+                   ) : transactionsError ? (
+                      <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-600">
+                         {transactionsError}
+                      </div>
+                   ) : transactions.length === 0 ? (
+                      <div className="text-center py-10 text-slate-500">
+                         <Receipt className="mx-auto mb-2 h-8 w-8 text-slate-300" />
+                         <p>No recent transaction activity</p>
+                      </div>
+                   ) : (
+                      <div className="divide-y divide-slate-100">
+                         {transactions.map((transaction) => (
+                            <div key={transaction._id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+                               <div className="flex items-center gap-3">
+                                  <div className={`flex h-10 w-10 items-center justify-center rounded-full ${
+                                     transaction.type === "credit" ? "bg-emerald-50 text-emerald-600" : "bg-blue-50 text-primary"
+                                  }`}>
+                                     <Receipt className="h-5 w-5" />
                                   </div>
-                                  <div className="text-left sm:text-right">
-                                     <p className={`font-black ${transaction.type === "credit" ? "text-emerald-600" : "text-slate-900"}`}>
-                                        {transaction.type === "credit" ? "+" : "-"}{formatCurrency(transaction.amount)}
+                                  <div>
+                                     <p className="font-bold text-slate-900">
+                                        {transaction.description || "Wallet transaction"}
                                      </p>
-                                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                                        {transaction.type}
+                                     <p className="text-xs text-slate-500">
+                                        {formatDate(transaction.createdAt)}
+                                        {transaction.booking?.bookingRef ? ` - Ref: ${transaction.booking.bookingRef}` : ""}
                                      </p>
                                   </div>
                                </div>
-                            ))}
-                         </div>
-                      )}
-                   </div>
+                               <div className="text-left sm:text-right">
+                                  <p className={`font-black ${transaction.type === "credit" ? "text-emerald-600" : "text-slate-900"}`}>
+                                     {transaction.type === "credit" ? "+" : "-"}{formatCurrency(transaction.amount)}
+                                  </p>
+                                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                     {transaction.type}
+                                  </p>
+                               </div>
+                            </div>
+                         ))}
+                      </div>
+                   )}
                 </div>
              )}
 

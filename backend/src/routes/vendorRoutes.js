@@ -27,6 +27,7 @@ import {
   upsertVendorProfile,
 } from "../controllers/vendorController.js";
 import { authenticate, authorizeRoles } from "../middlewares/authenticate.js";
+import { requireVerifiedVendor } from "../middlewares/requireVerifiedVendor.js";
 
 const vendorRouter = Router();
 
@@ -35,15 +36,15 @@ vendorRouter.use(authenticate, authorizeRoles("vendor", "operator", "admin"));
 vendorRouter.get("/overview", getVendorOverview);
 
 vendorRouter.get("/ev-stations", getMyChargingStations);
-vendorRouter.post("/ev-stations", createChargingStation);
-vendorRouter.put("/ev-stations/:id", updateChargingStation);
-vendorRouter.delete("/ev-stations/:id", deleteChargingStation);
+vendorRouter.post("/ev-stations", requireVerifiedVendor, createChargingStation);
+vendorRouter.put("/ev-stations/:id", requireVerifiedVendor, updateChargingStation);
+vendorRouter.delete("/ev-stations/:id", requireVerifiedVendor, deleteChargingStation);
 
 vendorRouter.get("/:type/:id/slots", getFacilitySlots);
-vendorRouter.post("/:type/:id/slots", createFacilitySlot);
-vendorRouter.put("/:type/:id/slots/:slotId", updateFacilitySlot);
-vendorRouter.delete("/:type/:id/slots/:slotId", deleteFacilitySlot);
-vendorRouter.put("/parking/:id/pricing", updateParkingPricing);
+vendorRouter.post("/:type/:id/slots", requireVerifiedVendor, createFacilitySlot);
+vendorRouter.put("/:type/:id/slots/:slotId", requireVerifiedVendor, updateFacilitySlot);
+vendorRouter.delete("/:type/:id/slots/:slotId", requireVerifiedVendor, deleteFacilitySlot);
+vendorRouter.put("/parking/:id/pricing", requireVerifiedVendor, updateParkingPricing);
 
 vendorRouter.get("/bookings/export", exportVendorBookings);
 vendorRouter.get("/bookings", getVendorBookings);
@@ -53,9 +54,9 @@ vendorRouter.put("/bookings/:id/cancel", cancelVendorBooking);
 
 vendorRouter.get("/analytics", getVendorAnalytics);
 
-vendorRouter.post("/coupons", createCoupon);
+vendorRouter.post("/coupons", requireVerifiedVendor, createCoupon);
 vendorRouter.get("/coupons", getCoupons);
-vendorRouter.delete("/coupons/:id", deleteCoupon);
+vendorRouter.delete("/coupons/:id", requireVerifiedVendor, deleteCoupon);
 
 vendorRouter.get("/profile", getVendorProfile);
 vendorRouter.put("/profile", upsertVendorProfile);

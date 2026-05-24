@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
+import { Navigation, Download } from "lucide-react";
 import BackButton from "../components/ui/BackButton";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
 import ErrorState from "../components/ui/ErrorState";
@@ -79,16 +80,15 @@ export default function BookingDetailsPage({ token }) {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 animate-fadeIn md:py-8 lg:px-8">
-      <div className="mb-6">
-        <BackButton label="Back to Bookings" to="/bookings" />
-      </div>
-      
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
-        <div>
-          <h1 className="text-3xl font-bold text-secondary">Booking Details</h1>
-          <p className="mt-1 text-sm font-semibold text-textSecondary uppercase tracking-wider">
-            Ref: {booking.bookingRef}
-          </p>
+        <div className="flex items-start gap-4">
+          <BackButton label="Back to Bookings" to="/bookings" />
+          <div className="pt-1">
+            <h1 className="text-3xl font-bold leading-none text-secondary">Booking Details</h1>
+            <p className="mt-2 text-sm font-semibold text-textSecondary uppercase tracking-wider">
+              Ref: {booking.bookingRef}
+            </p>
+          </div>
         </div>
         <div className="flex gap-2">
           <span className={`inline-flex items-center rounded-full px-3 py-1 font-semibold uppercase text-xs tracking-wide border ${
@@ -181,19 +181,49 @@ export default function BookingDetailsPage({ token }) {
               <button
                 type="button"
                 onClick={() => navigate(`/payment/${booking._id}`, { state: { booking } })}
-                className="btn-primary mt-6 w-full py-3"
+                className="btn-primary mt-6 w-full py-3 print:hidden"
               >
                 Pay Now
               </button>
             )}
             
+            {booking.status === "confirmed" && new Date(booking.endTime) > new Date() && (
+              <button
+                type="button"
+                onClick={() => navigate(`/navigate/${booking._id}`)}
+                className="btn-primary mt-3 flex w-full items-center justify-center gap-2 py-3 print:hidden"
+              >
+                <Navigation size={18} />
+                Get Directions
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="btn-ghost mt-3 flex w-full items-center justify-center gap-2 border border-border bg-white text-textPrimary hover:bg-gray-50 print:hidden"
+            >
+              <Download size={18} />
+              Download Invoice
+            </button>
+
             {isCancelable && (
               <button
                 type="button"
                 onClick={handleCancelBooking}
-                className="btn-ghost mt-3 w-full border border-border bg-white text-error hover:bg-red-50 hover:border-red-200"
+                className="btn-ghost mt-3 w-full border border-border bg-white text-error hover:bg-red-50 hover:border-red-200 print:hidden"
               >
                 Cancel Booking
+              </button>
+            )}
+
+            {booking.status === "cancelled" && booking.paymentStatus === "paid" && (
+              <button
+                type="button"
+                onClick={() => navigate(`/refund/${booking._id}`, { state: { booking } })}
+                className="btn-ghost mt-3 w-full border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 print:hidden"
+              >
+                Request Refund
               </button>
             )}
           </div>

@@ -1,25 +1,20 @@
 import { useState } from "react";
-import DashboardPage from "../features/dashboard/DashboardPage";
 import LoginForm from "../features/auth/components/LoginForm";
 import RegisterForm from "../features/auth/components/RegisterForm";
 
 const TOKEN_KEY = "vendor-token";
 
-export default function VendorPage() {
-  const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) || "");
+export default function VendorPage({ setToken }) {
   const [showRegister, setShowRegister] = useState(false);
 
-  const handleLoginSuccess = (newToken) => {
+  const handleLoginSuccess = (newToken, newRefreshToken) => {
     localStorage.setItem(TOKEN_KEY, newToken);
+    if (newRefreshToken) {
+      localStorage.setItem("vendor-refresh-token", newRefreshToken);
+    }
+    window.dispatchEvent(new Event("storage"));
     setToken(newToken);
   };
-
-  const handleLogout = () => {
-    localStorage.removeItem(TOKEN_KEY);
-    setToken("");
-  };
-
-  if (!token) {
     return (
       <main className="min-h-screen bg-linear-to-br from-slate-50 via-blue-50/30 to-indigo-50/50 flex items-center justify-center p-4">
         <div className="grid w-full max-w-5xl overflow-hidden rounded-[2.5rem] border border-white/40 bg-white/70 shadow-2xl backdrop-blur-2xl lg:grid-cols-2">
@@ -60,7 +55,4 @@ export default function VendorPage() {
         </div>
       </main>
     );
-  }
-
-  return <DashboardPage token={token} onBack={handleLogout} />;
 }

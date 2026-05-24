@@ -1,59 +1,19 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+import { request } from "./vendorService.js";
 
-const request = async (path, payload) => {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+export const registerUser = (payload) =>
+  request("/auth/register", { method: "POST", payload });
 
-  const data = await response.json();
+export const loginUser = (payload) =>
+  request("/auth/login", { method: "POST", payload });
 
-  if (!response.ok) {
-    throw new Error(data.message || "Request failed");
-  }
+export const apiSendOTP = (email) =>
+  request("/auth/send-otp", { method: "POST", payload: { email } });
 
-  return data;
-};
+export const apiVerifyOTP = (email, otp) =>
+  request("/auth/verify-otp", { method: "POST", payload: { email, otp } });
 
-export const registerUser = (payload) => request("/auth/register", payload);
+export const updateProfile = (payload, token) =>
+  request("/auth/profile", { method: "PUT", payload, token });
 
-export const loginUser = (payload) => request("/auth/login", payload);
-
-export const updateProfile = async (payload, token) => {
-  const response = await fetch(`${API_BASE_URL}/auth/profile`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(payload),
-  });
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || "Profile update failed");
-  }
-
-  return data;
-};
-
-export const changePassword = async (payload, token) => {
-  const response = await fetch(`${API_BASE_URL}/auth/password`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(payload),
-  });
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || "Password update failed");
-  }
-
-  return data;
-};
+export const changePassword = (payload, token) =>
+  request("/auth/password", { method: "PUT", payload, token });

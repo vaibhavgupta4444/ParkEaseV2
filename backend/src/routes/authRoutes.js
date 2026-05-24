@@ -9,7 +9,8 @@ import {
   verifyOTP,
   forgotPassword,
   resetPassword,
-  googleAuth
+  googleAuth,
+  refresh
 } from "../controllers/authController.js";
 import { authenticate } from "../middlewares/authenticate.js";
 
@@ -17,6 +18,7 @@ const authRouter = Router();
 
 authRouter.post("/register", register);
 authRouter.post("/login", login);
+authRouter.post("/refresh", refresh);
 authRouter.put("/profile", authenticate, updateProfile);
 authRouter.put("/password", authenticate, changePassword);
 

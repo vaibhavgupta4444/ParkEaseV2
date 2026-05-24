@@ -14,3 +14,7 @@ const request = async (endpoint, payload) => {
 export const apiLogin = (email, password) => request("/auth/login", { email, password });
 
 export const apiRegister = (userData) => request("/auth/register", { ...userData, role: "vendor" });
+
+export const apiSendOTP = (email) => request("/auth/send-otp", { email });
+
+export const apiVerifyOTP = (email, otp) => request("/auth/verify-otp", { email, otp });

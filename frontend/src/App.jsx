@@ -2,6 +2,7 @@ import { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster, toast } from "react-hot-toast";
 import HomePage from "./pages/HomePage";
+import UserHomePage from "./pages/UserHomePage";
 import MapHomePage from "./pages/MapHomePage";
 import FacilityDetail from "./pages/FacilityDetail";
 import BookingSummary from "./pages/BookingSummary";
@@ -13,6 +14,9 @@ import AuthModal from "./features/auth/AuthModal";
 import PaymentPage from "./pages/PaymentPage";
 import BookingDetailsPage from "./pages/BookingDetailsPage";
 import NavigatePage from "./pages/NavigatePage";
+import FeedbackPage from "./pages/FeedbackPage";
+import RefundPage from "./pages/RefundPage";
+import NotFoundPage from "./pages/NotFoundPage";
 import UserLayout from "./components/layout/UserLayout";
 
 const getStoredAuth = () => {
@@ -27,8 +31,11 @@ export default function App() {
 
   const isAuthenticated = Boolean(auth.token && auth.user);
 
-  const handleAuthSuccess = (token, user) => {
+  const handleAuthSuccess = (token, user, refreshToken) => {
     localStorage.setItem("token", token);
+    if (refreshToken) {
+      localStorage.setItem("refresh_token", refreshToken);
+    }
     localStorage.setItem("user", JSON.stringify(user));
     setAuth({ token, user });
     setAuthModalConfig({ isOpen: false, mode: "login" });
@@ -37,6 +44,7 @@ export default function App() {
 
   const handleLogout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("refresh_token");
     localStorage.removeItem("user");
     setAuth({ token: null, user: null });
     toast.success("Logged out successfully");
@@ -66,12 +74,23 @@ export default function App() {
           path="/"
           element={
             isAuthenticated ? (
-              <Navigate to="/map" replace />
+              <Navigate to="/home" replace />
             ) : (
               <HomePage onLogin={openLogin} onSignup={openSignup} />
             )
           }
         />
+        <Route 
+          element={
+            isAuthenticated ? (
+              <UserLayout user={auth.user} token={auth.token} onLogout={handleLogout} />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
+        >
+          <Route path="/home" element={<UserHomePage user={auth.user} token={auth.token} />} />
+        </Route>
         <Route
           path="/map"
           element={
@@ -128,9 +147,11 @@ export default function App() {
           <Route path="/bookings/:id" element={<BookingDetailsPage token={auth.token} />} />
           <Route path="/navigate/:bookingId" element={<NavigatePage token={auth.token} />} />
           <Route path="/payment/:id" element={<PaymentPage token={auth.token} />} />
+          <Route path="/feedback" element={<FeedbackPage token={auth.token} />} />
+          <Route path="/refund/:bookingId" element={<RefundPage token={auth.token} />} />
         </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
 
       {authModalConfig.isOpen && (

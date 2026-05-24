@@ -1,4 +1,8 @@
-export default function ProfileTab({ profile, setProfile, onSave }) {
+import DocumentUploadField from "./DocumentUploadField";
+import { Link } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
+
+export default function ProfileTab({ profile, setProfile, onSave, token }) {
   const docs = profile.documents || [];
   const updateDoc = (type, url) => {
     const existing = docs.findIndex(d => d.type === type);
@@ -10,6 +14,10 @@ export default function ProfileTab({ profile, setProfile, onSave }) {
 
   return (
     <form onSubmit={onSave} className="mt-6 space-y-6">
+      <Link to="/vendor/home" className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-blue-600 w-fit">
+        <ArrowLeft size={16} />
+        Back to Dashboard
+      </Link>
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/60">
         <h3 className="text-lg font-bold">Business Information</h3>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -36,26 +44,20 @@ export default function ProfileTab({ profile, setProfile, onSave }) {
 
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/60">
         <h3 className="text-lg font-bold">Verification Documents</h3>
-        <p className="text-xs text-slate-500 mb-4">Upload document proofs (via URL) for verification.</p>
+        <p className="text-xs text-slate-500 mb-4">Upload document proofs (PDF, JPG, PNG) for verification.</p>
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-bold text-slate-400">Business Registration Certificate (URL)</label>
-            <input 
-              value={docs.find(d => d.type === "business_reg")?.url || ""} 
-              onChange={(e) => updateDoc("business_reg", e.target.value)} 
-              placeholder="https://..." 
-              className="rounded-xl border border-slate-300 px-3 py-2 text-sm" 
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-bold text-slate-400">Owner ID Proof (URL)</label>
-            <input 
-              value={docs.find(d => d.type === "id_proof")?.url || ""} 
-              onChange={(e) => updateDoc("id_proof", e.target.value)} 
-              placeholder="https://..." 
-              className="rounded-xl border border-slate-300 px-3 py-2 text-sm" 
-            />
-          </div>
+          <DocumentUploadField 
+            label="Business Registration Certificate"
+            value={docs.find(d => d.type === "business_reg")?.url || ""} 
+            onChange={(url) => updateDoc("business_reg", url)} 
+            token={token}
+          />
+          <DocumentUploadField 
+            label="Owner ID Proof"
+            value={docs.find(d => d.type === "id_proof")?.url || ""} 
+            onChange={(url) => updateDoc("id_proof", url)} 
+            token={token}
+          />
         </div>
       </div>
 
