@@ -11,6 +11,7 @@ import vendorRouter from "./routes/vendorRoutes.js";
 import uploadRouter from "./routes/uploadRoutes.js";
 import feedbackRouter from "./routes/feedbackRoutes.js";
 import refundRouter from "./routes/refundRoutes.js";
+import metroRouter from "./routes/metroRoutes.js";
 import { env } from "./config/env.js";
 
 const app = express();
@@ -52,5 +53,6 @@ app.use("/api/vendor", vendorRouter);
 app.use("/api/upload", uploadRouter);
 app.use("/api/feedback", feedbackRouter);
 app.use("/api/refunds", refundRouter);
+app.use("/api/metro", metroRouter);
 
 export default app;
