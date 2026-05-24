@@ -110,6 +110,21 @@ export default function MapHomePage({ user, onLogout }) {
         const lon = Number(data[0].lon);
         setSearchLocation([lat, lon]);
         await fetchFacilities(lat, lon);
+        
+        // Fetch nearby metro stations for the searched location
+        const city = await getCityFromCoordinates(lat, lon);
+        if (cityHasMetro(city)) {
+          const stations = await fetchNearbyMetroStations(lat, lon, 5000);
+          setMetroStations(stations);
+          if (stations.length > 0) {
+            setShowMetro(true);
+          } else {
+            setShowMetro(false);
+          }
+        } else {
+          setMetroStations([]);
+          setShowMetro(false);
+        }
       } else {
         toast.error("No facilities found");
       }
