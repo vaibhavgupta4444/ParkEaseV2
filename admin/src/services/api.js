@@ -56,19 +56,20 @@ const customFetch = async (url, options = {}) => {
   if (response.status === 401 && !url.includes("/auth/login") && !url.includes("/auth/refresh")) {
     if (!isRefreshing) {
       isRefreshing = true;
-      try {
-        const newAccessToken = await handleTokenRefresh();
-        isRefreshing = false;
-        onRefreshed(newAccessToken);
-      } catch (err) {
-        isRefreshing = false;
-        refreshSubscribers = [];
-        throw err;
-      }
+      handleTokenRefresh()
+        .then((newAccessToken) => {
+          isRefreshing = false;
+          onRefreshed(newAccessToken);
+        })
+        .catch((err) => {
+          isRefreshing = false;
+          onRefreshed(null); // Notify subscribers of failure
+        });
     }
 
     return new Promise((resolve, reject) => {
       subscribeTokenRefresh((newToken) => {
+        if (!newToken) return reject(new Error("Token refresh failed"));
         options.headers["Authorization"] = `Bearer ${newToken}`;
         window.fetch(url, options)
           .then((res) => resolve(res))
@@ -468,6 +469,15 @@ export const api = {
   // Audit Logs
   getAuditLogs: async () => {
     const res = await fetch(`${API_BASE_URL}/admin/audit-logs`, {
+      method: "GET",
+      headers: getHeaders(),
+    });
+    return handleResponse(res);
+  },
+
+  // Admin Notifications
+  getAdminNotifications: async () => {
+    const res = await fetch(`${API_BASE_URL}/admin/notifications`, {
       method: "GET",
       headers: getHeaders(),
     });

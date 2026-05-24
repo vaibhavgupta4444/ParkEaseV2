@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   LogOut,
   MapPinned,
+  MessageSquare,
   Settings,
   Shield,
   User,
@@ -19,11 +20,9 @@ const baseLinks = [
   { label: "Home", path: "/map", icon: Home },
   { label: "Find Parking", path: "/map", icon: MapPinned },
   { label: "My Bookings", path: "/bookings", icon: BookOpen },
-  { label: "Wallet", path: "/profile?tab=wallet", icon: Wallet },
-  { label: "Notifications", path: "/notifications", icon: Bell, badge: true },
   { label: "Profile", path: "/profile", icon: User },
   { label: "Settings", path: "/profile?tab=settings", icon: Settings },
-  { label: "Help", path: "/help", icon: CircleHelp },
+  { label: "Feedback", path: "/feedback", icon: MessageSquare },
 ];
 
 export default function Sidebar({ isOpen, onClose, user, onLogout }) {
@@ -37,7 +36,6 @@ export default function Sidebar({ isOpen, onClose, user, onLogout }) {
 
   const links = [
     ...baseLinks,
-    ...(user?.role === "vendor" ? [{ label: "Vendor Console", path: "/vendor", icon: LayoutDashboard }] : []),
     ...(user?.role === "admin" ? [{ label: "Admin Panel", path: "/admin", icon: Shield }] : []),
   ];
 

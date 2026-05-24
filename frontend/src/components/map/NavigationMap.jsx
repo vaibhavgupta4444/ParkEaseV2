@@ -375,7 +375,7 @@ export default function NavigationMap({ destination, bookingRef, slotId, classNa
           <button
             type="button"
             onClick={() => setFollowMode((value) => !value)}
-            className={`absolute right-4 top-4 z-[1000] flex h-11 w-11 items-center justify-center rounded-full border bg-white shadow-lg transition ${followMode ? "border-primary text-primary" : "border-border text-textSecondary"}`}
+            className={`absolute right-4 top-24 z-[1000] flex h-11 w-11 items-center justify-center rounded-full border bg-white shadow-lg transition ${followMode ? "border-primary text-primary" : "border-border text-textSecondary"}`}
             aria-label="Toggle follow mode"
           >
             <Crosshair size={18} />

@@ -9,6 +9,8 @@ import Review from "../models/Review.js";
 import SupportTicket from "../models/SupportTicket.js";
 import PlatformSettings from "../models/PlatformSettings.js";
 import AdminLog from "../models/AdminLog.js";
+import Feedback from "../models/Feedback.js";
+
 
 // Helper to write audit logs
 const logAdminAction = async (adminId, action, targetType, targetId, details) => {
@@ -64,10 +66,10 @@ export const getAdminSummary = async (req, res) => {
       VendorProfile.find({ verificationStatus: "pending" })
         .limit(5)
         .populate("userId", "name email"),
-      Booking.find({ paymentStatus: "paid" }),
+      Booking.find({ status: { $in: ["confirmed", "completed"] } }),
     ]);
 
-    // Calculate revenue pools
+    // Calculate revenue pools (from confirmed + completed bookings)
     const revenueToday = allPaidBookings
       .filter((b) => new Date(b.createdAt) >= todayStart)
       .reduce((sum, b) => sum + (b.totalPrice || 0), 0);
@@ -767,7 +769,13 @@ export const getRevenueSummary = async (req, res) => {
     monthStart.setDate(1);
     monthStart.setHours(0, 0, 0, 0);
 
-    const paidBookings = await Booking.find({ paymentStatus: "paid" });
+    // Include confirmed & completed bookings so revenue shows even without Stripe capture
+    const paidBookings = await Booking.find({
+      $or: [
+        { paymentStatus: "paid" },
+        { status: { $in: ["confirmed", "completed"] } },
+      ],
+    });
     const allRefunds = await Refund.find({ status: "processed" });
 
     const totalRevenue = paidBookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
@@ -802,7 +810,12 @@ export const getRevenueSummary = async (req, res) => {
 
 export const getRevenueCharts = async (req, res) => {
   try {
-    const paidBookings = await Booking.find({ paymentStatus: "paid" });
+    const paidBookings = await Booking.find({
+      $or: [
+        { paymentStatus: "paid" },
+        { status: { $in: ["confirmed", "completed"] } },
+      ],
+    });
 
     // Top revenue generating facilities list
     const facilityStats = {};
@@ -937,8 +950,9 @@ export const manuallyTriggerRefund = async (req, res) => {
 export const getReviews = async (req, res) => {
   try {
     const reviews = await Review.find()
-      .populate("userId", "name email")
-      .populate("facilityId")
+      .populate("user", "name email")
+      .populate("parkingLot")
+      .populate("chargingStation")
       .sort({ createdAt: -1 });
 
     return res.status(200).json({ message: "Reviews retrieved", data: reviews });
@@ -996,8 +1010,9 @@ export const getReportedReviews = async (req, res) => {
   try {
     // Flagged reviews are reviews with report counts or custom report criteria
     const flagged = await Review.find({ reportCount: { $gt: 0 } })
-      .populate("userId", "name email")
-      .populate("facilityId");
+      .populate("user", "name email")
+      .populate("parkingLot")
+      .populate("chargingStation");
 
     return res.status(200).json({ message: "Reported reviews retrieved", data: flagged });
   } catch (error) {
@@ -1156,6 +1171,106 @@ export const getAuditLogs = async (req, res) => {
   try {
     const logs = await AdminLog.find().populate("adminId", "name email").sort({ createdAt: -1 });
     return res.status(200).json({ message: "Audit logs retrieved", data: logs });
+  } catch (error) {
+    return res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// 11. Admin Notifications Feed
+export const getAdminNotifications = async (req, res) => {
+  try {
+    // Pull recent platform events from multiple sources and unify
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // last 7 days
+
+    const [recentBookings, recentReviews, recentFeedback, pendingVendors, openTickets] =
+      await Promise.all([
+        Booking.find({ createdAt: { $gte: since } })
+          .sort({ createdAt: -1 })
+          .limit(10)
+          .populate("user", "name"),
+        Review.find({ createdAt: { $gte: since } })
+          .sort({ createdAt: -1 })
+          .limit(5)
+          .populate("user", "name"),
+        Feedback.find({ createdAt: { $gte: since } })
+          .sort({ createdAt: -1 })
+          .limit(5)
+          .populate("userId", "name"),
+        VendorProfile.find({ verificationStatus: "pending" })
+          .sort({ createdAt: -1 })
+          .limit(5),
+        SupportTicket.find({ status: "open" })
+          .sort({ createdAt: -1 })
+          .limit(5)
+          .populate("submittedBy", "name"),
+      ]);
+
+    const notifications = [];
+
+    recentBookings.forEach((b) => {
+      notifications.push({
+        _id: `booking-${b._id}`,
+        type: "booking",
+        title: "New Booking",
+        message: `${b.user?.name || "A user"} made a ${b.bookingType} booking (${b.bookingRef})`,
+        createdAt: b.createdAt,
+        read: false,
+        status: b.status,
+      });
+    });
+
+    recentReviews.forEach((r) => {
+      notifications.push({
+        _id: `review-${r._id}`,
+        type: "review",
+        title: "New Review Submitted",
+        message: `${r.user?.name || "A user"} left a ${r.rating}★ review`,
+        createdAt: r.createdAt,
+        read: false,
+      });
+    });
+
+    recentFeedback.forEach((f) => {
+      notifications.push({
+        _id: `feedback-${f._id}`,
+        type: "feedback",
+        title: "New Feedback",
+        message: `${f.userId?.name || "A user"} submitted "${f.type}" feedback`,
+        createdAt: f.createdAt,
+        read: false,
+      });
+    });
+
+    pendingVendors.forEach((v) => {
+      notifications.push({
+        _id: `vendor-${v._id}`,
+        type: "vendor",
+        title: "Vendor Awaiting Verification",
+        message: `${v.businessName} is pending document approval`,
+        createdAt: v.createdAt,
+        read: false,
+      });
+    });
+
+    openTickets.forEach((t) => {
+      notifications.push({
+        _id: `ticket-${t._id}`,
+        type: "support",
+        title: "Open Support Ticket",
+        message: `${t.submittedBy?.name || "A user"}: "${t.subject || "Support Request"}"`,
+        createdAt: t.createdAt,
+        read: false,
+      });
+    });
+
+    // Sort by newest first
+    notifications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    return res.status(200).json({
+      message: "Admin notifications retrieved",
+      data: notifications.slice(0, 20),
+      unreadCount: notifications.length,
+    });
   } catch (error) {
     return res.status(500).json({ message: "Server error", error: error.message });
   }

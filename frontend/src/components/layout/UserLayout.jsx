@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Outlet, Navigate, useLocation, useNavigate } from "react-router-dom";
-import { BookOpen, LogOut, MapPinned, Menu, User, X } from "lucide-react";
+import { BookOpen, LogOut, MapPinned, MessageSquare, User, X } from "lucide-react";
 import Navbar from "../navigation/Navbar";
 
 const NAV_LINKS = [
   { label: "Home Map", path: "/map", icon: MapPinned },
   { label: "My Bookings", path: "/bookings", icon: BookOpen },
   { label: "Profile", path: "/profile", icon: User },
+  { label: "Feedback", path: "/feedback", icon: MessageSquare },
 ];
 
 export default function UserLayout({ user, token, onLogout }) {

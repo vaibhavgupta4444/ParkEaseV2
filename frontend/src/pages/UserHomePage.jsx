@@ -1,16 +1,30 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { Map, Calendar, ArrowRight, Clock, MapPin } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Map, Calendar, ArrowRight, Clock, MapPin, TrainFront, Navigation } from "lucide-react";
+import { getUserLocation } from "../utils/geolocation";
+import { getCityFromCoordinates, cityHasMetro } from "../utils/metroUtils";
+import { fetchNearbyMetroStations } from "../services/metroService";
+import { haversineDistance, formatDistance } from "../utils/haversine";
+import Skeleton from "../components/ui/Skeleton";
 
 export default function UserHomePage({ user, token }) {
   const [recentBookings, setRecentBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  const [metroStations, setMetroStations] = useState([]);
+  const [metroLoading, setMetroLoading] = useState(false);
+  const [metroRadius, setMetroRadius] = useState(() => {
+    return parseInt(localStorage.getItem("parkease_metro_radius")) || 2000;
+  });
+  const [userCoords, setUserCoords] = useState(null);
+  
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchBookings = async () => {
       if (!token) return;
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api"}/bookings/my-bookings`, {
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api"}/bookings/me`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = await response.json();
@@ -25,6 +39,40 @@ export default function UserHomePage({ user, token }) {
     };
     fetchBookings();
   }, [token]);
+
+  useEffect(() => {
+    const fetchMetro = async () => {
+      try {
+        setMetroLoading(true);
+        const loc = await getUserLocation();
+        setUserCoords(loc);
+        
+        const city = await getCityFromCoordinates(loc.latitude, loc.longitude);
+        if (cityHasMetro(city)) {
+          const stations = await fetchNearbyMetroStations(loc.latitude, loc.longitude, metroRadius);
+          
+          // calculate distance and sort
+          const sortedStations = stations.map(s => {
+            const dist = haversineDistance(loc.latitude, loc.longitude, s.lat, s.lng);
+            return { ...s, distance: dist };
+          }).sort((a, b) => a.distance - b.distance);
+          
+          setMetroStations(sortedStations);
+        }
+      } catch (err) {
+        console.warn("Could not fetch location or metro stations:", err);
+      } finally {
+        setMetroLoading(false);
+      }
+    };
+    fetchMetro();
+  }, [metroRadius]);
+
+  const handleRadiusChange = (radius) => {
+    setMetroRadius(radius);
+    localStorage.setItem("parkease_metro_radius", radius);
+  };
+
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -88,7 +136,9 @@ export default function UserHomePage({ user, token }) {
             </div>
           ) : recentBookings.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {recentBookings.map(booking => (
+              {recentBookings.map(booking => {
+                const item = booking.bookingType === "parking" ? booking.parkingLot : booking.chargingStation;
+                return (
                 <div key={booking._id} className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <div>
                     <div className="flex items-start justify-between mb-3">
@@ -99,12 +149,12 @@ export default function UserHomePage({ user, token }) {
                       }`}>
                         {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
                       </span>
-                      <span className="text-sm font-bold text-slate-900">₹{booking.totalAmount}</span>
+                      <span className="text-sm font-bold text-slate-900">₹{booking.totalPrice}</span>
                     </div>
-                    <h4 className="font-bold text-slate-900 line-clamp-1">{booking.facility?.name || "Facility"}</h4>
+                    <h4 className="font-bold text-slate-900 line-clamp-1">{item?.name || "Facility"}</h4>
                     <div className="mt-2 flex items-center text-sm text-slate-500">
                       <MapPin size={14} className="mr-1.5 shrink-0" />
-                      <span className="line-clamp-1">{booking.facility?.location?.address?.street || "Location not available"}</span>
+                      <span className="line-clamp-1">{item?.location?.address?.street || "Location not available"}</span>
                     </div>
                     <div className="mt-1 flex items-center text-sm text-slate-500">
                       <Clock size={14} className="mr-1.5 shrink-0" />
@@ -118,7 +168,7 @@ export default function UserHomePage({ user, token }) {
                     View Details
                   </Link>
                 </div>
-              ))}
+              )})}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center rounded-3xl border border-slate-200 bg-white py-16 text-center">
@@ -133,6 +183,91 @@ export default function UserHomePage({ user, token }) {
             </div>
           )}
         </div>
+
+        {/* Nearby Metro Stations Section */}
+        {(metroLoading || metroStations.length > 0) && (
+          <div className="mt-16">
+            <div className="flex items-end justify-between mb-6">
+              <div>
+                <h3 className="text-2xl font-bold text-slate-900">Nearby Metro Stations</h3>
+                <p className="text-sm text-slate-500 mt-1">Stations within {formatDistance(metroRadius)} of your location</p>
+              </div>
+              <div className="flex bg-white rounded-lg shadow-sm border border-slate-200 p-1">
+                {[1000, 2000, 5000].map(r => (
+                  <button
+                    key={r}
+                    onClick={() => handleRadiusChange(r)}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition ${
+                      metroRadius === r 
+                      ? "bg-slate-900 text-white shadow-md" 
+                      : "text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    {r / 1000} km
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-4 overflow-x-auto pb-6 -mx-6 px-6 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-2 lg:grid-cols-3 custom-scrollbar">
+              {metroLoading ? (
+                <>
+                  <Skeleton className="h-40 min-w-[280px] sm:min-w-0 rounded-2xl" />
+                  <Skeleton className="h-40 min-w-[280px] sm:min-w-0 rounded-2xl hidden sm:block" />
+                  <Skeleton className="h-40 min-w-[280px] sm:min-w-0 rounded-2xl hidden lg:block" />
+                </>
+              ) : (
+                metroStations.map(station => (
+                  <div key={station.id} className="min-w-[280px] sm:min-w-0 flex flex-col justify-between rounded-2xl border border-rose-100 bg-gradient-to-b from-white to-rose-50/30 p-5 shadow-sm hover:shadow-md hover:border-rose-200 transition-all">
+                    <div>
+                      <div className="flex items-start gap-3 mb-3">
+                        <div className="w-10 h-10 rounded-full bg-rose-600 text-white flex items-center justify-center font-black text-lg shadow-sm shadow-rose-200 shrink-0">
+                          M
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-slate-900 line-clamp-1">{station.name}</h4>
+                          <p className="text-xs font-bold text-rose-600">{formatDistance(station.distance)} away</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {station.network && (
+                          <span className="inline-flex items-center rounded-md bg-rose-100 px-2 py-1 text-[10px] font-bold text-rose-800">
+                            {station.network}
+                          </span>
+                        )}
+                        {station.lines && (
+                          <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-700">
+                            Line: {station.lines}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="flex flex-col gap-2">
+                      <button 
+                        onClick={() => navigate(`/map?lat=${station.lat}&lng=${station.lng}&name=${encodeURIComponent(station.name)}&source=metro`)}
+                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-white border border-slate-200 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-rose-600 transition"
+                      >
+                        <TrainFront size={16} />
+                        Find Parking Nearby
+                      </button>
+                      <a 
+                        href={`https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lng}&travelmode=transit`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-rose-50 border border-rose-100 py-2 text-sm font-bold text-rose-700 hover:bg-rose-100 transition"
+                      >
+                        <Navigation size={16} />
+                        Get Directions
+                      </a>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

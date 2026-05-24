@@ -16,10 +16,11 @@ export default function Navbar({ onLogin, onSignup, user, onLogout }) {
             <BrandLogo size="large" />
           </div>
 
-          <div className="hidden md:flex items-center space-x-7">
+          <div className="hidden lg:flex items-center space-x-7">
             <button onClick={() => navigate('/map')} className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors">Home Map</button>
             <button onClick={() => navigate('/bookings')} className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors">My Bookings</button>
             <button onClick={() => navigate('/profile')} className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors">Profile</button>
+            <button onClick={() => navigate('/feedback')} className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors">Feedback</button>
           </div>
 
           <div className="flex items-center space-x-3">
@@ -38,7 +39,7 @@ export default function Navbar({ onLogin, onSignup, user, onLogout }) {
               </>
             )}
 
-            <button onClick={() => setMobileOpen((s) => !s)} className="md:hidden p-2">
+            <button onClick={() => setMobileOpen((s) => !s)} className="lg:hidden p-2">
               {mobileOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
           </div>
@@ -47,11 +48,12 @@ export default function Navbar({ onLogin, onSignup, user, onLogout }) {
 
       {/* Mobile menu */}
       {mobileOpen && (
-        <div className="md:hidden border-t border-slate-100 bg-white">
+        <div className="lg:hidden border-t border-slate-100 bg-white">
           <div className="px-4 pt-2 pb-4 space-y-2">
             <button onClick={() => { navigate('/map'); setMobileOpen(false); }} className="block w-full text-left px-4 py-3 text-sm font-semibold text-slate-600">Home Map</button>
             <button onClick={() => { navigate('/bookings'); setMobileOpen(false); }} className="block w-full text-left px-4 py-3 text-sm font-semibold text-slate-600">My Bookings</button>
             <button onClick={() => { navigate('/profile'); setMobileOpen(false); }} className="block w-full text-left px-4 py-3 text-sm font-semibold text-slate-600">Profile</button>
+            <button onClick={() => { navigate('/feedback'); setMobileOpen(false); }} className="block w-full text-left px-4 py-3 text-sm font-semibold text-slate-600">Feedback</button>
             {!user && <button onClick={() => { onLogin(); setMobileOpen(false); }} className="w-full text-center py-3 font-bold text-blue-600">Sign In</button>}
           </div>
         </div>

@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState, useRef } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { MapContainer, TileLayer, Popup, Marker, ZoomControl, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Popup, Marker, ZoomControl, useMapEvents, Circle, useMap } from "react-leaflet";
 import L from "leaflet";
-import { ChevronUp, Crosshair, List, Menu, Search } from "lucide-react";
+import "leaflet-routing-machine";
+import { ChevronUp, Crosshair, List, Menu, Search, Navigation } from "lucide-react";
 import BrandLogo from "../components/navigation/BrandLogo";
 import Sidebar from "../components/navigation/Sidebar";
 import EmptyState from "../components/ui/EmptyState";
@@ -13,6 +14,31 @@ import { getNearbyParkingLots } from "../services/parkingService";
 import { getNearbyChargingStations } from "../services/chargingService";
 import { getUserLocation } from "../utils/geolocation";
 import { formatCurrency, getApiErrorMessage } from "../utils/formatters";
+import { fetchNearbyMetroStations } from "../services/metroService";
+import { getCityFromCoordinates, cityHasMetro } from "../utils/metroUtils";
+
+const metroIcon = L.divIcon({
+  className: '',
+  html: `
+    <div style="
+      width: 32px;
+      height: 32px;
+      background: #E11D48;
+      border-radius: 50%;
+      border: 3px solid white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      font-weight: 800;
+      font-size: 14px;
+      color: white;
+      font-family: Inter, sans-serif;
+    ">M</div>
+  `,
+  iconSize: [32, 32],
+  iconAnchor: [16, 16]
+});
 
 export default function MapHomePage({ user, onLogout }) {
   const navigate = useNavigate();
@@ -28,6 +54,18 @@ export default function MapHomePage({ user, onLogout }) {
   const [isListOpen, setIsListOpen] = useState(false);
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [selectedFacility, setSelectedFacility] = useState(null);
+  
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [metroStations, setMetroStations] = useState([]);
+  const [showParking, setShowParking] = useState(true);
+  const [showEv, setShowEv] = useState(true);
+  const [showMetro, setShowMetro] = useState(false);
+  const [routeDestination, setRouteDestination] = useState(null);
+  
+  const metroLat = searchParams.get('lat');
+  const metroLng = searchParams.get('lng');
+  const metroName = searchParams.get('name');
+  const source = searchParams.get('source');
 
   const fetchFacilities = async (lat, lng) => {
     setLoading(true);
@@ -88,13 +126,33 @@ export default function MapHomePage({ user, onLogout }) {
       setUserLocation([loc.latitude, loc.longitude]);
       setSearchLocation([loc.latitude, loc.longitude]);
       await fetchFacilities(loc.latitude, loc.longitude);
+      
+      const city = await getCityFromCoordinates(loc.latitude, loc.longitude);
+      if (cityHasMetro(city)) {
+        const stations = await fetchNearbyMetroStations(loc.latitude, loc.longitude, 5000);
+        setMetroStations(stations);
+        if (stations.length > 0) setShowMetro(true);
+      }
     } catch (err) {
       toast.error(getApiErrorMessage(err));
     }
   };
 
   useEffect(() => {
-    locateUser();
+    if (source === 'metro' && metroLat && metroLng) {
+      const lat = parseFloat(metroLat);
+      const lng = parseFloat(metroLng);
+      setSearchLocation([lat, lng]);
+      setRadius(0.5); // 500m radius
+      fetchFacilities(lat, lng);
+      // optionally fetch metro stations around it to show other metros
+      fetchNearbyMetroStations(lat, lng, 5000).then(stations => {
+        setMetroStations(stations);
+        if (stations.length > 0) setShowMetro(true);
+      });
+    } else {
+      locateUser();
+    }
     // eslint-disable-next-line
   }, []);
 
@@ -112,6 +170,24 @@ export default function MapHomePage({ user, onLogout }) {
       <Sidebar isOpen={isNavOpen} onClose={() => setIsNavOpen(false)} user={user} onLogout={onLogout} />
 
       <div className="z-50 shrink-0 bg-surface shadow-sm backdrop-blur-md">
+        {source === 'metro' && (
+          <div className="bg-rose-50 border-b border-rose-100 py-2 px-4 md:px-6 flex items-center justify-between">
+            <p className="text-sm font-semibold text-rose-800">
+              Showing parking near <strong>{metroName}</strong>
+            </p>
+            <button 
+              onClick={() => {
+                setSearchParams({});
+                setRadius(5);
+                setRouteDestination(null);
+                locateUser();
+              }}
+              className="text-xs font-bold text-rose-600 bg-white border border-rose-200 px-3 py-1 rounded-full hover:bg-rose-50"
+            >
+              Clear
+            </button>
+          </div>
+        )}
         <div className="flex h-20 items-center justify-between px-4 md:px-6">
           <div className="flex items-center gap-3">
              <button
@@ -185,11 +261,16 @@ export default function MapHomePage({ user, onLogout }) {
       </div>
 
       <div className="relative flex flex-1 overflow-hidden">
-        <div className={`fixed inset-x-0 bottom-0 z-40 flex h-1/2 flex-col rounded-t-2xl bg-surface shadow-2xl transition-transform duration-300 md:relative md:inset-auto md:h-full md:w-[400px] md:translate-y-0 md:rounded-none md:shadow-none ${isListOpen ? "translate-y-0" : "translate-y-full md:translate-y-0"}`}>
-          <div className="mx-auto mt-2 h-1.5 w-12 rounded-full bg-border md:hidden" />
-          <div className="flex items-center justify-between border-b border-border p-4">
-            <h2 className="text-lg font-bold text-secondary">Nearby Facilities</h2>
-            <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-primary">{facilities.length}</span>
+        <div className={`fixed inset-x-0 bottom-0 z-40 flex h-1/2 flex-col rounded-t-2xl bg-surface shadow-2xl transition-transform duration-300 md:relative md:inset-auto md:h-full md:w-[400px] md:translate-y-0 md:rounded-none md:shadow-none ${isListOpen ? "translate-y-0" : "translate-y-[calc(100%-76px)] md:translate-y-0"}`}>
+          <div className="cursor-pointer md:cursor-default" onClick={() => setIsListOpen(!isListOpen)}>
+            <div className="mx-auto mt-2 h-1.5 w-12 rounded-full bg-border md:hidden" />
+            <div className="flex items-center justify-between border-b border-border p-4">
+              <div className="flex items-center gap-3">
+                <h2 className="text-lg font-bold text-secondary">Nearby Facilities</h2>
+                <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-primary">{facilities.length}</span>
+              </div>
+              <ChevronUp size={20} className={`text-textSecondary transition-transform md:hidden ${isListOpen ? "rotate-180" : ""}`} />
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -248,7 +329,32 @@ export default function MapHomePage({ user, onLogout }) {
         </div>
 
         <div className="relative z-0 flex-1 bg-gray-200">
-          <MapContainer center={mapCenter} zoom={13} className="h-full w-full" zoomControl={false}>
+          
+          {/* Map Layer Toggles */}
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[400] flex bg-white/90 backdrop-blur shadow-lg rounded-full p-1 gap-1 border border-slate-200">
+            <button
+              onClick={() => setShowParking(!showParking)}
+              className={`px-3 py-1.5 text-xs font-bold rounded-full transition ${showParking ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}
+            >
+              Parking
+            </button>
+            <button
+              onClick={() => setShowEv(!showEv)}
+              className={`px-3 py-1.5 text-xs font-bold rounded-full transition ${showEv ? "bg-green-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}
+            >
+              EV Stations
+            </button>
+            {metroStations.length > 0 && (
+              <button
+                onClick={() => setShowMetro(!showMetro)}
+                className={`px-3 py-1.5 text-xs font-bold rounded-full transition ${showMetro ? "bg-rose-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}
+              >
+                Metro
+              </button>
+            )}
+          </div>
+
+          <MapContainer center={mapCenter} zoom={source === 'metro' ? 15 : 13} className="h-full w-full" zoomControl={false}>
             <ZoomControl position="topright" />
             <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -256,6 +362,18 @@ export default function MapHomePage({ user, onLogout }) {
             />
             <MapUpdater center={mapCenter} />
             
+            {userLocation && routeDestination && (
+              <SimpleRouteLayer start={userLocation} end={routeDestination} />
+            )}
+            
+            {source === 'metro' && metroLat && metroLng && (
+              <Circle 
+                center={[parseFloat(metroLat), parseFloat(metroLng)]} 
+                radius={500} 
+                pathOptions={{ color: '#E11D48', fillColor: '#E11D48', fillOpacity: 0.1, dashArray: '5, 10' }} 
+              />
+            )}
+
             {userLocation && (
               <Marker
                 position={userLocation}
@@ -277,6 +395,9 @@ export default function MapHomePage({ user, onLogout }) {
               const coords = facility.location?.coordinates;
               if (!coords) return null;
               const isParking = facility.facilityType === "parking";
+              if (isParking && !showParking) return null;
+              if (!isParking && !showEv) return null;
+
               const pinColor = isParking ? "#1D4ED8" : "#16A34A";
               return (
                 <Marker
@@ -305,6 +426,39 @@ export default function MapHomePage({ user, onLogout }) {
                 </Marker>
               )
             })}
+            
+            {showMetro && metroStations.map(station => (
+              <Marker
+                key={station.id}
+                position={[station.lat, station.lng]}
+                icon={metroIcon}
+              >
+                <Popup>
+                  <div className="font-bold mb-1 text-sm">{station.name}</div>
+                  {station.network && <div className="text-xs text-slate-500">Network: {station.network}</div>}
+                  {station.lines && <div className="text-xs text-slate-500">Line: {station.lines}</div>}
+                  <button 
+                    onClick={() => {
+                      setSearchParams({ lat: station.lat, lng: station.lng, name: station.name, source: 'metro' });
+                      setRadius(0.5);
+                      setRouteDestination(null);
+                      setSearchLocation([station.lat, station.lng]);
+                      fetchFacilities(station.lat, station.lng);
+                    }}
+                    className="mt-3 w-full rounded bg-rose-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-700 transition"
+                  >
+                    Find Parking Near This Metro
+                  </button>
+                  <button 
+                    onClick={() => setRouteDestination([station.lat, station.lng])}
+                    className="mt-2 w-full flex items-center justify-center gap-1 rounded bg-slate-100 border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-200 transition"
+                  >
+                    <Navigation size={14} />
+                    Show Route to Metro
+                  </button>
+                </Popup>
+              </Marker>
+            ))}
           </MapContainer>
 
           <button
@@ -316,13 +470,7 @@ export default function MapHomePage({ user, onLogout }) {
             <Crosshair size={20} />
           </button>
 
-          <button 
-            className="absolute bottom-6 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full bg-secondary px-6 py-3 font-bold text-white shadow-xl md:hidden"
-            onClick={() => setIsListOpen(!isListOpen)}
-          >
-            {isListOpen ? <ChevronUp size={18} /> : <List size={18} />}
-            {isListOpen ? "Hide List" : "Show List"}
-          </button>
+          {/* List button removed in favor of peeking bottom sheet */}
 
           {selectedFacility && (
             <div className="absolute inset-x-0 bottom-0 z-30 rounded-t-2xl bg-surface p-5 shadow-2xl md:left-auto md:right-6 md:bottom-6 md:w-80 md:rounded-xl">
@@ -368,5 +516,47 @@ function MapUpdater({ center }) {
       map.setView(center, map.getZoom(), { animate: true });
     }
   }, [center, map]);
+  return null;
+}
+
+
+function SimpleRouteLayer({ start, end }) {
+  const map = useMap();
+  const controlRef = useRef(null);
+
+  useEffect(() => {
+    if (!start || !end) return;
+
+    if (controlRef.current) {
+      map.removeControl(controlRef.current);
+    }
+
+    controlRef.current = L.Routing.control({
+      waypoints: [
+        L.latLng(start[0], start[1]),
+        L.latLng(end[0], end[1])
+      ],
+      router: L.Routing.osrmv1({
+        serviceUrl: "https://router.project-osrm.org/route/v1",
+      }),
+      lineOptions: {
+        styles: [{ color: "#E11D48", weight: 4, opacity: 0.8 }]
+      },
+      show: false,
+      addWaypoints: false,
+      draggableWaypoints: false,
+      fitSelectedRoutes: true,
+      routeWhileDragging: false,
+    });
+
+    controlRef.current.addTo(map);
+
+    return () => {
+      if (controlRef.current) {
+        map.removeControl(controlRef.current);
+      }
+    };
+  }, [start, end, map]);
+
   return null;
 }

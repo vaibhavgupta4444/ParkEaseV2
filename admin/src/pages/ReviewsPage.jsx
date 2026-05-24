@@ -129,13 +129,13 @@ export default function ReviewsPage() {
               <div className="space-y-3">
                 <div className="flex items-start justify-between gap-4 border-b border-slate-50 pb-2.5">
                   <div>
-                    <span className="block font-bold text-slate-800">{rev.userId?.name || "Anonymized"}</span>
-                    <span className="block text-slate-400 text-[10px] mt-0.5 font-mono">{rev.userId?.email}</span>
+                    <span className="block font-bold text-slate-800">{rev.user?.name || "Anonymized"}</span>
+                    <span className="block text-slate-400 text-[10px] mt-0.5 font-mono">{rev.user?.email}</span>
                   </div>
                   <div className="text-right">
                     {renderStars(rev.rating)}
                     <span className="block text-[9px] font-bold text-slate-400 mt-1 uppercase truncate max-w-32">
-                      {rev.facilityId?.name || "Facility"}
+                      {rev.parkingLot?.name || rev.chargingStation?.name || "Facility"}
                     </span>
                   </div>
                 </div>
@@ -207,7 +207,7 @@ export default function ReviewsPage() {
                       Report Warnings: {rev.reportCount || 1} Reports Flagged
                     </span>
                     <span className="block text-slate-400 text-[10px] mt-0.5">
-                      Reviewer: {rev.userId?.name} ({rev.userId?.email})
+                      Reviewer: {rev.user?.name} ({rev.user?.email})
                     </span>
                   </div>
                 </div>
@@ -215,7 +215,7 @@ export default function ReviewsPage() {
                 <div className="text-right">
                   {renderStars(rev.rating)}
                   <span className="block text-[9px] font-bold text-slate-400 mt-1 uppercase">
-                    {rev.facilityId?.name}
+                    {rev.parkingLot?.name || rev.chargingStation?.name}
                   </span>
                 </div>
               </div>

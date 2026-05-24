@@ -10,7 +10,8 @@ import {
   forgotPassword,
   resetPassword,
   googleAuth,
-  refresh
+  refresh,
+  getMe
 } from "../controllers/authController.js";
 import { authenticate } from "../middlewares/authenticate.js";
 
@@ -21,6 +22,7 @@ authRouter.post("/login", login);
 authRouter.post("/refresh", refresh);
 authRouter.put("/profile", authenticate, updateProfile);
 authRouter.put("/password", authenticate, changePassword);
+authRouter.get("/me", authenticate, getMe);
 
 // New robust endpoints
 authRouter.post("/verify-email/:token", verifyEmail);

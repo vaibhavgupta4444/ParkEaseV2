@@ -46,6 +46,7 @@ import {
   updatePlatformSettings,
   toggleMaintenanceMode,
   getAuditLogs,
+  getAdminNotifications,
 } from "../controllers/adminController.js";
 import { authenticate, authorizeRoles } from "../middlewares/authenticate.js";
 
@@ -120,5 +121,8 @@ adminRouter.put("/settings/maintenance", toggleMaintenanceMode);
 
 // 10. Admin Audit Trail Log logs
 adminRouter.get("/audit-logs", getAuditLogs);
+
+// 11. Admin Notifications
+adminRouter.get("/notifications", getAdminNotifications);
 
 export default adminRouter;
