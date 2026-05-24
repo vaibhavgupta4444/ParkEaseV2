@@ -1,14 +1,12 @@
 import { useState } from "react";
 import { Outlet, Navigate, useLocation, useNavigate } from "react-router-dom";
-import { BookOpen, LogOut, MapPinned, Menu, User, X, Home, MessageSquare } from "lucide-react";
+import { BookOpen, LogOut, MapPinned, Menu, User, X } from "lucide-react";
 import Navbar from "../navigation/Navbar";
 
 const NAV_LINKS = [
-  { label: "Home", path: "/home", icon: Home },
-  { label: "Map", path: "/map", icon: MapPinned },
+  { label: "Home Map", path: "/map", icon: MapPinned },
   { label: "My Bookings", path: "/bookings", icon: BookOpen },
   { label: "Profile", path: "/profile", icon: User },
-  { label: "Feedback", path: "/feedback", icon: MessageSquare },
 ];
 
 export default function UserLayout({ user, token, onLogout }) {
@@ -87,14 +85,14 @@ export default function UserLayout({ user, token, onLogout }) {
 
       {isMobileOpen && (
         <div
-          className="fixed inset-0 z-[100] bg-black/50 md:hidden"
+          className="fixed inset-0 z-100 bg-black/50 md:hidden"
           onClick={() => setIsMobileOpen(false)}
         />
       )}
 
       <aside
         style={{ width: 260, backgroundColor: "#0F172A" }}
-        className={`fixed inset-y-0 left-0 z-[101] flex flex-col shadow-xl transition-transform duration-300 md:hidden ${
+        className={`fixed inset-y-0 left-0 z-101 flex flex-col shadow-xl transition-transform duration-300 md:hidden ${
           isMobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
